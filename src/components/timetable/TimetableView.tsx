@@ -14,7 +14,7 @@ interface TimetableViewProps {
   classId?: string;
 }
 
-const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 export const TimetableView: React.FC<TimetableViewProps> = ({
   timetable,

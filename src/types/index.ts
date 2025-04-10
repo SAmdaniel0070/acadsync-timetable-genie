@@ -4,6 +4,14 @@ export interface Class {
   id: string;
   name: string; // e.g., "Year 1 Computer Science"
   year: number; // academic year
+  batches?: Batch[]; // batches in this class
+}
+
+// Batch represents a subdivision of a class
+export interface Batch {
+  id: string;
+  name: string; // e.g., "Batch A"
+  classId: string;
 }
 
 // Teacher represents a faculty member
@@ -37,6 +45,7 @@ export interface Lesson {
   teacherId: string;
   day: number; // 0 for Monday, 1 for Tuesday, etc.
   timeSlotId: string;
+  batchId?: string; // optional batch identifier
 }
 
 // Timetable represents the full schedule
@@ -48,3 +57,6 @@ export interface Timetable {
 
 // TimetableView is used to display different views of a timetable
 export type TimetableView = "master" | "teacher" | "class";
+
+// Share method types
+export type ShareMethod = "whatsapp" | "email" | "download";

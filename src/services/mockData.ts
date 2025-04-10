@@ -1,17 +1,27 @@
-
-import { Class, Teacher, Subject, TimeSlot, Lesson, Timetable } from "@/types";
+import { Class, Teacher, Subject, TimeSlot, Lesson, Timetable, Batch } from "@/types";
 
 // Helper function to generate a simple ID
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
 // Mock Classes
 export const classes: Class[] = [
-  { id: "c1", name: "Year 1 Computer Science", year: 1 },
-  { id: "c2", name: "Year 2 Computer Science", year: 2 },
-  { id: "c3", name: "Year 1 Electronics", year: 1 },
-  { id: "c4", name: "Year 2 Electronics", year: 2 },
-  { id: "c5", name: "Year 1 Mathematics", year: 1 },
+  { id: "c1", name: "Year 1 Computer Science", year: 1, batches: [] },
+  { id: "c2", name: "Year 2 Computer Science", year: 2, batches: [] },
+  { id: "c3", name: "Year 1 Electronics", year: 1, batches: [] },
+  { id: "c4", name: "Year 2 Electronics", year: 2, batches: [] },
+  { id: "c5", name: "Year 1 Mathematics", year: 1, batches: [] },
 ];
+
+// Mock Batches
+export const batches: Batch[] = [
+  { id: "b1", name: "Batch A", classId: "c1" },
+  { id: "b2", name: "Batch B", classId: "c1" },
+  { id: "b3", name: "Batch A", classId: "c2" },
+];
+
+// Initialize the batches for classes
+classes[0].batches = batches.filter(b => b.classId === "c1");
+classes[1].batches = batches.filter(b => b.classId === "c2");
 
 // Mock Subjects
 export const subjects: Subject[] = [
@@ -103,8 +113,8 @@ export const DataService = {
   getTimetable: () => Promise.resolve({...timetable}),
   
   // CRUD operations for classes
-  addClass: (newClass: Omit<Class, "id">) => {
-    const classWithId = { ...newClass, id: generateId() };
+  addClass: (newClass: Omit<Class, "id" | "batches">) => {
+    const classWithId = { ...newClass, id: generateId(), batches: [] };
     classes.push(classWithId);
     return Promise.resolve(classWithId);
   },
@@ -112,6 +122,10 @@ export const DataService = {
   updateClass: (updatedClass: Class) => {
     const index = classes.findIndex(c => c.id === updatedClass.id);
     if (index !== -1) {
+      // Preserve batches if they're not included in the update
+      if (!updatedClass.batches) {
+        updatedClass.batches = classes[index].batches;
+      }
       classes[index] = updatedClass;
       return Promise.resolve(updatedClass);
     }
@@ -260,5 +274,67 @@ export const DataService = {
       ...timetable,
       lessons: classLessons,
     });
+  },
+
+  // Batch operations
+  getBatchesByClass: (classId: string) => {
+    return Promise.resolve(batches.filter(b => b.classId === classId));
+  },
+  
+  addBatch: (newBatch: Omit<Batch, "id">) => {
+    const batchWithId = { ...newBatch, id: generateId() };
+    batches.push(batchWithId);
+    
+    // Update the batches array in the corresponding class
+    const classIndex = classes.findIndex(c => c.id === newBatch.classId);
+    if (classIndex !== -1) {
+      if (!classes[classIndex].batches) {
+        classes[classIndex].batches = [];
+      }
+      classes[classIndex].batches?.push(batchWithId);
+    }
+    
+    return Promise.resolve(batchWithId);
+  },
+  
+  updateBatch: (updatedBatch: Batch) => {
+    const index = batches.findIndex(b => b.id === updatedBatch.id);
+    if (index !== -1) {
+      batches[index] = updatedBatch;
+      
+      // Update the batch in the corresponding class
+      const classIndex = classes.findIndex(c => c.id === updatedBatch.classId);
+      if (classIndex !== -1 && classes[classIndex].batches) {
+        const batchIndex = classes[classIndex].batches?.findIndex(b => b.id === updatedBatch.id);
+        if (batchIndex !== -1 && classes[classIndex].batches) {
+          classes[classIndex].batches[batchIndex] = updatedBatch;
+        }
+      }
+      
+      return Promise.resolve(updatedBatch);
+    }
+    return Promise.reject("Batch not found");
+  },
+  
+  deleteBatch: (id: string) => {
+    const index = batches.findIndex(b => b.id === id);
+    if (index !== -1) {
+      const deletedBatch = batches.splice(index, 1)[0];
+      
+      // Remove the batch from the corresponding class
+      const classIndex = classes.findIndex(c => c.id === deletedBatch.classId);
+      if (classIndex !== -1 && classes[classIndex].batches) {
+        classes[classIndex].batches = classes[classIndex].batches?.filter(b => b.id !== id);
+      }
+      
+      return Promise.resolve(deletedBatch);
+    }
+    return Promise.reject("Batch not found");
+  },
+
+  // Share methods
+  shareTimetable: (method: "whatsapp" | "email" | "download", timetableId: string, view: string, entityId?: string) => {
+    // This would be implemented with actual sharing logic in a real app
+    return Promise.resolve({ success: true, method, timetableId, view, entityId });
   },
 };

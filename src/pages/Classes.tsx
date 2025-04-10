@@ -1,11 +1,10 @@
-
 import React from "react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { DataService } from "@/services/mockData";
-import { Class } from "@/types";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Class, Batch } from "@/types";
+import { Plus, Pencil, Trash2, Users } from "lucide-react";
 import { 
   Dialog, 
   DialogContent, 
@@ -18,6 +17,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Separator } from "@/components/ui/separator";
 
 const Classes = () => {
   const { toast } = useToast();
@@ -31,6 +32,14 @@ const Classes = () => {
     name: "",
     year: 1,
   });
+  
+  // Batch state
+  const [isBatchDialogOpen, setIsBatchDialogOpen] = React.useState(false);
+  const [currentBatch, setCurrentBatch] = React.useState<Batch | null>(null);
+  const [batchFormData, setBatchFormData] = React.useState<Partial<Batch>>({
+    name: "",
+  });
+  const [expandedClassId, setExpandedClassId] = React.useState<string | null>(null);
 
   const fetchClasses = React.useCallback(async () => {
     try {
@@ -58,6 +67,14 @@ const Classes = () => {
     setFormData((prev) => ({
       ...prev,
       [name]: name === "year" ? parseInt(value, 10) : value,
+    }));
+  };
+
+  const handleBatchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setBatchFormData((prev) => ({
+      ...prev,
+      [name]: value,
     }));
   };
 
@@ -135,6 +152,50 @@ const Classes = () => {
     }
   };
 
+  const handleAddBatch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentClass) return;
+    
+    try {
+      await DataService.addBatch({
+        name: batchFormData.name || "",
+        classId: currentClass.id,
+      });
+      toast({
+        title: "Success",
+        description: "Batch added successfully",
+      });
+      setIsBatchDialogOpen(false);
+      setBatchFormData({ name: "" });
+      fetchClasses();
+    } catch (error) {
+      console.error("Error adding batch:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add batch. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteBatch = async (batchId: string) => {
+    try {
+      await DataService.deleteBatch(batchId);
+      toast({
+        title: "Success",
+        description: "Batch deleted successfully",
+      });
+      fetchClasses();
+    } catch (error) {
+      console.error("Error deleting batch:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete batch. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const openEditDialog = (classItem: Class) => {
     setCurrentClass(classItem);
     setFormData({
@@ -149,8 +210,70 @@ const Classes = () => {
     setIsDeleteDialogOpen(true);
   };
 
+  const toggleExpand = (classId: string) => {
+    setExpandedClassId(expandedClassId === classId ? null : classId);
+  };
+
   const columns = [
-    { key: "name", title: "Class Name" },
+    { 
+      key: "name", 
+      title: "Class Name",
+      render: (classItem: Class) => (
+        <div>
+          <Collapsible
+            open={expandedClassId === classItem.id}
+            onOpenChange={() => toggleExpand(classItem.id)}
+            className="w-full"
+          >
+            <div className="flex items-center justify-between">
+              <span>{classItem.name}</span>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm">
+                  <Users className="h-4 w-4 mr-1" />
+                  Batches ({classItem.batches?.length || 0})
+                </Button>
+              </CollapsibleTrigger>
+            </div>
+            <CollapsibleContent className="mt-2">
+              <div className="pl-4 border-l-2 border-gray-200">
+                {classItem.batches && classItem.batches.length > 0 ? (
+                  <ul className="space-y-2">
+                    {classItem.batches.map(batch => (
+                      <li key={batch.id} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                        <span>{batch.name}</span>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => handleDeleteBatch(batch.id)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-gray-500 text-sm">No batches yet</p>
+                )}
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => {
+                    setCurrentClass(classItem);
+                    setBatchFormData({ name: "" });
+                    setIsBatchDialogOpen(true);
+                  }}
+                  className="mt-2"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Batch
+                </Button>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        </div>
+      )
+    },
     { key: "year", title: "Year" },
     {
       key: "actions",
@@ -327,6 +450,43 @@ const Classes = () => {
               Delete
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Batch Dialog */}
+      <Dialog open={isBatchDialogOpen} onOpenChange={setIsBatchDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Batch</DialogTitle>
+            <DialogDescription>
+              {currentClass && `Add a new batch to ${currentClass.name}`}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAddBatch}>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="batch-name">Batch Name</Label>
+                <Input
+                  id="batch-name"
+                  name="name"
+                  placeholder="e.g., Batch A"
+                  value={batchFormData.name}
+                  onChange={handleBatchInputChange}
+                  required
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setIsBatchDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">Add Batch</Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

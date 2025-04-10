@@ -12,6 +12,7 @@ import Timetables from "./pages/Timetables";
 import Teachers from "./pages/Teachers";
 import Subjects from "./pages/Subjects";
 import Timings from "./pages/Timings";
+import Share from "./pages/Share";
 
 const queryClient = new QueryClient();
 
@@ -29,7 +30,7 @@ const App = () => (
             <Route path="/teachers" element={<Teachers />} />
             <Route path="/subjects" element={<Subjects />} />
             <Route path="/timings" element={<Timings />} />
-            {/* Future routes for teachers, subjects, timings, etc. */}
+            <Route path="/share" element={<Share />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Layout>
