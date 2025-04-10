@@ -60,3 +60,6 @@ export type TimetableView = "master" | "teacher" | "class";
 
 // Share method types
 export type ShareMethod = "whatsapp" | "email" | "download";
+
+// EditMode for timetable
+export type EditMode = "none" | "edit";

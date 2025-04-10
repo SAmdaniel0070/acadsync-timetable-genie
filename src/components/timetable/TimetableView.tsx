@@ -1,7 +1,10 @@
 
-import React from "react";
-import { Class, Teacher, Subject, TimeSlot, Lesson, Timetable } from "@/types";
+import React, { useState } from "react";
+import { Class, Teacher, Subject, TimeSlot, Lesson, Timetable, EditMode } from "@/types";
 import { cn } from "@/lib/utils";
+import { TimetableEditDialog } from "./TimetableEditDialog";
+import { Edit, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface TimetableViewProps {
   timetable: Timetable;
@@ -12,6 +15,10 @@ interface TimetableViewProps {
   view: "master" | "teacher" | "class";
   teacherId?: string;
   classId?: string;
+  editMode?: EditMode;
+  onUpdateLesson?: (lesson: Lesson) => Promise<void>;
+  onDeleteLesson?: (id: string) => Promise<void>;
+  onAddLesson?: (lesson: Omit<Lesson, "id">) => Promise<void>;
 }
 
 const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -25,7 +32,15 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
   view,
   teacherId,
   classId,
+  editMode = "none",
+  onUpdateLesson,
+  onDeleteLesson,
+  onAddLesson,
 }) => {
+  const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [addingLessonAt, setAddingLessonAt] = useState<{ day: number; timeSlotId: string } | null>(null);
+
   // Filter lessons based on view type
   const filteredLessons = React.useMemo(() => {
     if (view === "teacher" && teacherId) {
@@ -82,6 +97,35 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
     );
   };
 
+  const handleEditLesson = (lesson: Lesson) => {
+    setEditingLesson(lesson);
+    setIsDialogOpen(true);
+  };
+
+  const handleAddLesson = (day: number, timeSlotId: string) => {
+    setAddingLessonAt({ day, timeSlotId });
+    setEditingLesson(null);
+    setIsDialogOpen(true);
+  };
+
+  const handleSaveLesson = async (updatedLesson: Lesson) => {
+    if (onUpdateLesson) {
+      await onUpdateLesson(updatedLesson);
+    }
+  };
+
+  const handleDeleteLesson = async (lessonId: string) => {
+    if (onDeleteLesson) {
+      await onDeleteLesson(lessonId);
+    }
+  };
+
+  const handleAddNewLesson = async (newLesson: Omit<Lesson, "id">) => {
+    if (onAddLesson) {
+      await onAddLesson(newLesson);
+    }
+  };
+
   // Determine what to render for a particular cell
   const renderCell = (day: number, timeSlot: TimeSlot) => {
     // If it's a break, render a break cell
@@ -103,7 +147,19 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
         <div className="h-full min-h-20 p-1 overflow-y-auto">
           {lessonsInThisSlot.length === 0 ? (
             <div className="h-full flex items-center justify-center text-gray-400 text-xs">
-              No classes
+              {editMode === "edit" ? (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => handleAddLesson(day, timeSlot.id)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add
+                </Button>
+              ) : (
+                "No classes"
+              )}
             </div>
           ) : (
             <div className="space-y-1">
@@ -111,7 +167,7 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
                 <div
                   key={lesson.id}
                   className={cn(
-                    "p-1 border rounded text-xs",
+                    "p-1 border rounded text-xs relative group",
                     getSubjectColor(lesson.subjectId)
                   )}
                 >
@@ -120,8 +176,29 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
                   <div className="text-xs text-gray-500">
                     {getTeacherName(lesson.teacherId)}
                   </div>
+                  {editMode === "edit" && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEditLesson(lesson)}
+                      className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 p-1 h-auto"
+                    >
+                      <Edit className="h-3 w-3" />
+                    </Button>
+                  )}
                 </div>
               ))}
+              {editMode === "edit" && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => handleAddLesson(day, timeSlot.id)}
+                  className="w-full text-xs text-gray-400 hover:text-gray-600"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add
+                </Button>
+              )}
             </div>
           )}
         </div>
@@ -135,27 +212,49 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
         view === "teacher" ? teacherId : undefined
       );
 
-      if (!lesson) {
-        return (
-          <div className="h-full min-h-20 flex items-center justify-center text-gray-400 text-xs">
-            Free
-          </div>
-        );
-      }
-
       return (
-        <div
-          className={cn(
-            "h-full min-h-20 p-2 flex flex-col",
-            getSubjectColor(lesson.subjectId)
-          )}
-        >
-          <div className="font-medium">{getSubjectName(lesson.subjectId)}</div>
-          {view === "teacher" && (
-            <div className="text-xs">{getClassName(lesson.classId)}</div>
-          )}
-          {view === "class" && (
-            <div className="text-xs">{getTeacherName(lesson.teacherId)}</div>
+        <div className="h-full min-h-20 relative">
+          {lesson ? (
+            <div
+              className={cn(
+                "h-full p-2 flex flex-col group",
+                getSubjectColor(lesson.subjectId)
+              )}
+            >
+              <div className="font-medium">{getSubjectName(lesson.subjectId)}</div>
+              {view === "teacher" && (
+                <div className="text-xs">{getClassName(lesson.classId)}</div>
+              )}
+              {view === "class" && (
+                <div className="text-xs">{getTeacherName(lesson.teacherId)}</div>
+              )}
+              {editMode === "edit" && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleEditLesson(lesson)}
+                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 p-1 h-auto"
+                >
+                  <Edit className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="h-full flex items-center justify-center text-gray-400 text-xs">
+              {editMode === "edit" ? (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => handleAddLesson(day, timeSlot.id)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add
+                </Button>
+              ) : (
+                "Free"
+              )}
+            </div>
           )}
         </div>
       );
@@ -163,58 +262,78 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-md shadow overflow-auto">
-      <div className="min-w-[768px]">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr>
-              <th className="border p-2 bg-gray-50 w-24"></th>
-              {daysOfWeek.map((day) => (
-                <th key={day} className="border p-2 bg-gray-50">
-                  {day}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {teachingTimeSlots.map((timeSlot, index) => {
-              // Find any break that should appear after this time slot
-              const nextBreak = breakTimeSlots.find(
-                b => b.startTime === timeSlot.endTime
-              );
-              
-              return (
-                <React.Fragment key={timeSlot.id}>
-                  <tr>
-                    <td className="border p-2 bg-gray-50 text-sm font-medium">
-                      {timeSlot.startTime} - {timeSlot.endTime}
-                    </td>
-                    {daysOfWeek.map((_, dayIndex) => (
-                      <td key={`${timeSlot.id}-${dayIndex}`} className="border">
-                        {renderCell(dayIndex, timeSlot)}
-                      </td>
-                    ))}
-                  </tr>
-                  
-                  {/* Render break row if there's a break after this slot */}
-                  {nextBreak && (
-                    <tr className="bg-gray-50">
-                      <td className="border p-2 text-sm font-medium">
-                        {nextBreak.startTime} - {nextBreak.endTime}
+    <>
+      <div className="bg-white rounded-md shadow overflow-auto">
+        <div className="min-w-[768px]">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr>
+                <th className="border p-2 bg-gray-50 w-24"></th>
+                {daysOfWeek.map((day) => (
+                  <th key={day} className="border p-2 bg-gray-50">
+                    {day}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {teachingTimeSlots.map((timeSlot, index) => {
+                // Find any break that should appear after this time slot
+                const nextBreak = breakTimeSlots.find(
+                  b => b.startTime === timeSlot.endTime
+                );
+                
+                return (
+                  <React.Fragment key={timeSlot.id}>
+                    <tr>
+                      <td className="border p-2 bg-gray-50 text-sm font-medium">
+                        {timeSlot.startTime} - {timeSlot.endTime}
                       </td>
                       {daysOfWeek.map((_, dayIndex) => (
-                        <td key={`break-${nextBreak.id}-${dayIndex}`} className="border">
-                          {renderCell(dayIndex, nextBreak)}
+                        <td key={`${timeSlot.id}-${dayIndex}`} className="border">
+                          {renderCell(dayIndex, timeSlot)}
                         </td>
                       ))}
                     </tr>
-                  )}
-                </React.Fragment>
-              );
-            })}
-          </tbody>
-        </table>
+                    
+                    {/* Render break row if there's a break after this slot */}
+                    {nextBreak && (
+                      <tr className="bg-gray-50">
+                        <td className="border p-2 text-sm font-medium">
+                          {nextBreak.startTime} - {nextBreak.endTime}
+                        </td>
+                        {daysOfWeek.map((_, dayIndex) => (
+                          <td key={`break-${nextBreak.id}-${dayIndex}`} className="border">
+                            {renderCell(dayIndex, nextBreak)}
+                          </td>
+                        ))}
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
+
+      {/* Edit or Add Dialog */}
+      {(editingLesson !== null || addingLessonAt !== null) && (
+        <TimetableEditDialog
+          open={isDialogOpen}
+          onOpenChange={setIsDialogOpen}
+          lesson={editingLesson}
+          day={addingLessonAt?.day ?? 0}
+          timeSlotId={addingLessonAt?.timeSlotId ?? ""}
+          teachers={teachers}
+          subjects={subjects}
+          classes={classes}
+          timeSlots={timeSlots}
+          onSave={handleSaveLesson}
+          onDelete={handleDeleteLesson}
+          onAdd={handleAddNewLesson}
+        />
+      )}
+    </>
   );
 };

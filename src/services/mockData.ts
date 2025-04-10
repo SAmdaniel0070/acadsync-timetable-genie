@@ -1,3 +1,4 @@
+
 import { Class, Teacher, Subject, TimeSlot, Lesson, Timetable, Batch } from "@/types";
 
 // Helper function to generate a simple ID
@@ -56,39 +57,70 @@ export const timeSlots: TimeSlot[] = [
   { id: "ts8", startTime: "15:15", endTime: "16:15", isBreak: false },
 ];
 
-// Helper function to generate lessons
+// Improved helper function to generate lessons with conflict avoidance
 const generateLessons = (): Lesson[] => {
   const lessons: Lesson[] = [];
+  const teacherSchedule: Record<string, Record<number, Record<string, boolean>>> = {};
+  const classSchedule: Record<string, Record<number, Record<string, boolean>>> = {};
+  
+  // Initialize schedule trackers
+  teachers.forEach(teacher => {
+    teacherSchedule[teacher.id] = {};
+    for (let day = 0; day < 6; day++) { // Include Saturday (0-5)
+      teacherSchedule[teacher.id][day] = {};
+    }
+  });
   
   classes.forEach(cls => {
-    // For each day of the week (0-4, Monday to Friday)
-    for (let day = 0; day < 5; day++) {
-      // For each time slot (skip breaks)
+    classSchedule[cls.id] = {};
+    for (let day = 0; day < 6; day++) {
+      classSchedule[cls.id][day] = {};
+    }
+  });
+  
+  // For each class, assign lessons
+  classes.forEach(cls => {
+    // For each day of the week (0-5, Monday to Saturday)
+    for (let day = 0; day < 6; day++) {
+      // For each teaching time slot
       const teachingSlots = timeSlots.filter(ts => !ts.isBreak);
       
-      teachingSlots.forEach((timeSlot, index) => {
-        // Select a subject and matching teacher randomly
-        const subjectIndex = Math.floor(Math.random() * subjects.length);
-        const subject = subjects[subjectIndex];
-        
-        // Find teachers who can teach this subject
-        const eligibleTeachers = teachers.filter(t => 
-          t.subjects.includes(subject.id)
-        );
+      teachingSlots.forEach(timeSlot => {
+        // Find eligible subjects and teachers
+        const eligibleTeachers = teachers.filter(teacher => {
+          // Check if teacher is available at this time
+          return !teacherSchedule[teacher.id][day][timeSlot.id];
+        });
         
         if (eligibleTeachers.length > 0) {
           // Select a random eligible teacher
           const teacherIndex = Math.floor(Math.random() * eligibleTeachers.length);
           const teacher = eligibleTeachers[teacherIndex];
           
-          lessons.push({
-            id: generateId(),
-            classId: cls.id,
-            subjectId: subject.id,
-            teacherId: teacher.id,
-            day,
-            timeSlotId: timeSlot.id,
-          });
+          // Find a subject this teacher can teach
+          const eligibleSubjects = subjects.filter(subject => 
+            teacher.subjects.includes(subject.id)
+          );
+          
+          if (eligibleSubjects.length > 0) {
+            // Select a random eligible subject
+            const subjectIndex = Math.floor(Math.random() * eligibleSubjects.length);
+            const subject = eligibleSubjects[subjectIndex];
+            
+            // Mark this slot as occupied for both teacher and class
+            teacherSchedule[teacher.id][day][timeSlot.id] = true;
+            classSchedule[cls.id][day][timeSlot.id] = true;
+            
+            // Create the lesson
+            lessons.push({
+              id: generateId(),
+              classId: cls.id,
+              subjectId: subject.id,
+              teacherId: teacher.id,
+              day,
+              timeSlotId: timeSlot.id,
+            });
+          }
         }
       });
     }
@@ -230,9 +262,9 @@ export const DataService = {
   
   // Timetable operations
   generateTimetable: () => {
-    // In a real app, this would be a complex algorithm
-    // For now, we'll use our pre-generated timetable
-    return Promise.resolve(timetable);
+    // Generate a new timetable with improved algorithm
+    timetable.lessons = generateLessons();
+    return Promise.resolve({...timetable});
   },
   
   updateLesson: (updatedLesson: Lesson) => {

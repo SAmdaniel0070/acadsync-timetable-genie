@@ -4,8 +4,8 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { DataService } from "@/services/mockData";
 import { TimetableView } from "@/components/timetable/TimetableView";
-import { Timetable, Class, Teacher, Subject, TimeSlot, TimetableView as TimetableViewType } from "@/types";
-import { Download, MailIcon, Share2 } from "lucide-react";
+import { Timetable, Class, Teacher, Subject, TimeSlot, TimetableView as TimetableViewType, EditMode, Lesson } from "@/types";
+import { Download, Edit, MailIcon, Save, Share2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { 
   Select, 
@@ -15,6 +15,8 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 const Timetables = () => {
   const { toast } = useToast();
@@ -27,6 +29,7 @@ const Timetables = () => {
   const [activeView, setActiveView] = React.useState<TimetableViewType>("master");
   const [selectedClassId, setSelectedClassId] = React.useState<string>("");
   const [selectedTeacherId, setSelectedTeacherId] = React.useState<string>("");
+  const [editMode, setEditMode] = React.useState<EditMode>("none");
 
   // Fetch all required data
   const fetchData = React.useCallback(async () => {
@@ -108,6 +111,67 @@ const Timetables = () => {
     });
   };
 
+  const handleUpdateLesson = async (lesson: Lesson) => {
+    try {
+      await DataService.updateLesson(lesson);
+      const updatedTimetable = await DataService.getTimetable();
+      setTimetable(updatedTimetable);
+      toast({
+        title: "Success",
+        description: "Lesson updated successfully",
+      });
+    } catch (error) {
+      console.error("Error updating lesson:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update lesson. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteLesson = async (id: string) => {
+    try {
+      await DataService.deleteLesson(id);
+      const updatedTimetable = await DataService.getTimetable();
+      setTimetable(updatedTimetable);
+      toast({
+        title: "Success",
+        description: "Lesson deleted successfully",
+      });
+    } catch (error) {
+      console.error("Error deleting lesson:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete lesson. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAddLesson = async (lesson: Omit<Lesson, "id">) => {
+    try {
+      await DataService.addLesson(lesson);
+      const updatedTimetable = await DataService.getTimetable();
+      setTimetable(updatedTimetable);
+      toast({
+        title: "Success",
+        description: "Lesson added successfully",
+      });
+    } catch (error) {
+      console.error("Error adding lesson:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add lesson. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const toggleEditMode = () => {
+    setEditMode(editMode === "none" ? "edit" : "none");
+  };
+
   if (loading) {
     return (
       <div className="min-h-[400px] flex items-center justify-center">
@@ -141,6 +205,24 @@ const Timetables = () => {
           </div>
         }
       />
+
+      <div className="mb-4 flex items-center space-x-2">
+        <Switch 
+          id="edit-mode" 
+          checked={editMode === "edit"} 
+          onCheckedChange={toggleEditMode}
+        />
+        <Label htmlFor="edit-mode">
+          {editMode === "edit" ? (
+            <span className="flex items-center text-brand-600">
+              <Edit className="mr-1 h-4 w-4" />
+              Editing Mode
+            </span>
+          ) : (
+            "Enable Editing Mode"
+          )}
+        </Label>
+      </div>
 
       <Tabs defaultValue="master" onValueChange={(value) => setActiveView(value as TimetableViewType)}>
         <TabsList className="mb-4">
@@ -190,6 +272,10 @@ const Timetables = () => {
               subjects={subjects}
               timeSlots={timeSlots}
               view="master"
+              editMode={editMode}
+              onUpdateLesson={handleUpdateLesson}
+              onDeleteLesson={handleDeleteLesson}
+              onAddLesson={handleAddLesson}
             />
           )}
         </TabsContent>
@@ -208,6 +294,10 @@ const Timetables = () => {
                 timeSlots={timeSlots}
                 view="teacher"
                 teacherId={selectedTeacherId}
+                editMode={editMode}
+                onUpdateLesson={handleUpdateLesson}
+                onDeleteLesson={handleDeleteLesson}
+                onAddLesson={handleAddLesson}
               />
             </div>
           )}
@@ -227,6 +317,10 @@ const Timetables = () => {
                 timeSlots={timeSlots}
                 view="class"
                 classId={selectedClassId}
+                editMode={editMode}
+                onUpdateLesson={handleUpdateLesson}
+                onDeleteLesson={handleDeleteLesson}
+                onAddLesson={handleAddLesson}
               />
             </div>
           )}
