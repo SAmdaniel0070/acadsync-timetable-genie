@@ -9,6 +9,9 @@ import Layout from "./components/layout/Layout";
 import Dashboard from "./pages/Dashboard";
 import Classes from "./pages/Classes";
 import Timetables from "./pages/Timetables";
+import Teachers from "./pages/Teachers";
+import Subjects from "./pages/Subjects";
+import Timings from "./pages/Timings";
 
 const queryClient = new QueryClient();
 
@@ -23,6 +26,9 @@ const App = () => (
             <Route path="/" element={<Dashboard />} />
             <Route path="/classes" element={<Classes />} />
             <Route path="/timetables" element={<Timetables />} />
+            <Route path="/teachers" element={<Teachers />} />
+            <Route path="/subjects" element={<Subjects />} />
+            <Route path="/timings" element={<Timings />} />
             {/* Future routes for teachers, subjects, timings, etc. */}
             <Route path="*" element={<NotFound />} />
           </Routes>
