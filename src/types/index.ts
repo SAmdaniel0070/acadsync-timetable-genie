@@ -37,6 +37,14 @@ export interface TimeSlot {
   isBreak: boolean; // true if this is a recess/lunch period
 }
 
+// Classroom represents a physical room where lessons can be held
+export interface Classroom {
+  id: string;
+  name: string; // e.g., "Room 101"
+  capacity: number; // number of students the room can accommodate
+  isLab: boolean; // true if this room is a laboratory
+}
+
 // Lesson represents a single class in the timetable
 export interface Lesson {
   id: string;
@@ -46,6 +54,7 @@ export interface Lesson {
   day: number; // 0 for Monday, 1 for Tuesday, etc.
   timeSlotId: string;
   batchId?: string; // optional batch identifier
+  classroomId?: string; // optional classroom identifier
 }
 
 // Timetable represents the full schedule
@@ -56,7 +65,7 @@ export interface Timetable {
 }
 
 // TimetableView is used to display different views of a timetable
-export type TimetableView = "master" | "teacher" | "class";
+export type TimetableView = "master" | "teacher" | "class" | "classroom";
 
 // Share method types
 export type ShareMethod = "whatsapp" | "email" | "download";

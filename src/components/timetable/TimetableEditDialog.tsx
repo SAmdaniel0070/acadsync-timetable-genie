@@ -1,23 +1,11 @@
 
-import React, { useState, useEffect } from "react";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle 
-} from "@/components/ui/dialog";
+import React, { useEffect, useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
-import { Teacher, Subject, Class, Lesson, TimeSlot } from "@/types";
+import { Class, Teacher, Subject, TimeSlot, Lesson, Classroom } from "@/types";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DataService } from "@/services/mockData";
 
 interface TimetableEditDialogProps {
   open: boolean;
@@ -29,9 +17,9 @@ interface TimetableEditDialogProps {
   subjects: Subject[];
   classes: Class[];
   timeSlots: TimeSlot[];
-  onSave: (lesson: Lesson) => void;
-  onDelete: (lessonId: string) => void;
-  onAdd: (lesson: Omit<Lesson, "id">) => void;
+  onSave: (lesson: Lesson) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
+  onAdd: (lesson: Omit<Lesson, "id">) => Promise<void>;
 }
 
 export const TimetableEditDialog: React.FC<TimetableEditDialogProps> = ({
@@ -48,82 +36,170 @@ export const TimetableEditDialog: React.FC<TimetableEditDialogProps> = ({
   onDelete,
   onAdd,
 }) => {
-  const [selectedTeacherId, setSelectedTeacherId] = useState<string>("");
-  const [selectedSubjectId, setSelectedSubjectId] = useState<string>("");
-  const [selectedClassId, setSelectedClassId] = useState<string>("");
-  const [selectedTimeSlotId, setSelectedTimeSlotId] = useState<string>("");
+  const [selectedClass, setSelectedClass] = useState<string | null>(null);
+  const [selectedTeacher, setSelectedTeacher] = useState<string | null>(null);
+  const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
+  const [selectedBatch, setSelectedBatch] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState<number>(0);
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null);
+  const [batches, setBatches] = useState<any[]>([]);
+  const [classrooms, setClassrooms] = useState<Classroom[]>([]);
+  const [selectedClassroom, setSelectedClassroom] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isEditMode = !!lesson;
 
   const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const isNewLesson = !lesson;
+  const nonBreakTimeSlots = timeSlots.filter(slot => !slot.isBreak);
 
-  // Initialize form data when lesson changes
   useEffect(() => {
-    if (lesson) {
-      setSelectedTeacherId(lesson.teacherId);
-      setSelectedSubjectId(lesson.subjectId);
-      setSelectedClassId(lesson.classId);
-      setSelectedTimeSlotId(lesson.timeSlotId);
-      setSelectedDay(lesson.day);
+    const fetchClassrooms = async () => {
+      try {
+        const data = await DataService.getClassrooms();
+        setClassrooms(data);
+      } catch (error) {
+        console.error("Error fetching classrooms:", error);
+      }
+    };
+
+    fetchClassrooms();
+  }, []);
+
+  useEffect(() => {
+    if (open) {
+      if (isEditMode && lesson) {
+        setSelectedClass(lesson.classId);
+        setSelectedTeacher(lesson.teacherId);
+        setSelectedSubject(lesson.subjectId);
+        setSelectedBatch(lesson.batchId || null);
+        setSelectedDay(lesson.day);
+        setSelectedTimeSlot(lesson.timeSlotId);
+        setSelectedClassroom(lesson.classroomId || null);
+
+        // Fetch batches for the selected class
+        const fetchBatches = async () => {
+          try {
+            const data = await DataService.getBatchesByClass(lesson.classId);
+            setBatches(data);
+          } catch (error) {
+            console.error("Error fetching batches:", error);
+          }
+        };
+        
+        fetchBatches();
+      } else {
+        setSelectedClass(null);
+        setSelectedTeacher(null);
+        setSelectedSubject(null);
+        setSelectedBatch(null);
+        setSelectedDay(day);
+        setSelectedTimeSlot(timeSlotId);
+        setSelectedClassroom(null);
+        setBatches([]);
+      }
+    }
+  }, [open, lesson, isEditMode, day, timeSlotId]);
+
+  useEffect(() => {
+    if (selectedClass) {
+      const fetchBatches = async () => {
+        try {
+          const data = await DataService.getBatchesByClass(selectedClass);
+          setBatches(data);
+        } catch (error) {
+          console.error("Error fetching batches:", error);
+        }
+      };
+      
+      fetchBatches();
     } else {
-      // Default values for a new lesson
-      setSelectedTeacherId(teachers.length > 0 ? teachers[0].id : "");
-      setSelectedSubjectId(subjects.length > 0 ? subjects[0].id : "");
-      setSelectedClassId(classes.length > 0 ? classes[0].id : "");
-      setSelectedTimeSlotId(timeSlotId);
-      setSelectedDay(day);
+      setBatches([]);
     }
-  }, [lesson, teachers, subjects, classes, day, timeSlotId]);
+  }, [selectedClass]);
 
-  // Filter subjects based on selected teacher
-  const availableSubjects = selectedTeacherId
-    ? subjects.filter(subject => {
-        const teacher = teachers.find(t => t.id === selectedTeacherId);
-        return teacher?.subjects.includes(subject.id);
-      })
-    : subjects;
-
-  const handleSave = () => {
-    if (isNewLesson) {
-      onAdd({
-        teacherId: selectedTeacherId,
-        subjectId: selectedSubjectId,
-        classId: selectedClassId,
-        day: selectedDay,
-        timeSlotId: selectedTimeSlotId,
-      });
-    } else if (lesson) {
-      onSave({
-        ...lesson,
-        teacherId: selectedTeacherId,
-        subjectId: selectedSubjectId,
-        classId: selectedClassId,
-        day: selectedDay,
-        timeSlotId: selectedTimeSlotId,
-      });
+  const handleSave = async () => {
+    if (!selectedClass || !selectedTeacher || !selectedSubject || !selectedDay || !selectedTimeSlot) {
+      alert("Please fill in all required fields");
+      return;
     }
-    onOpenChange(false);
+
+    setIsSubmitting(true);
+
+    try {
+      if (isEditMode && lesson) {
+        const updatedLesson: Lesson = {
+          ...lesson,
+          classId: selectedClass,
+          teacherId: selectedTeacher,
+          subjectId: selectedSubject,
+          day: selectedDay,
+          timeSlotId: selectedTimeSlot,
+          batchId: selectedBatch || undefined,
+          classroomId: selectedClassroom || undefined,
+        };
+        
+        await onSave(updatedLesson);
+      } else {
+        const newLesson = {
+          classId: selectedClass,
+          teacherId: selectedTeacher,
+          subjectId: selectedSubject,
+          day: selectedDay,
+          timeSlotId: selectedTimeSlot,
+          batchId: selectedBatch || undefined,
+          classroomId: selectedClassroom || undefined,
+        };
+        
+        await onAdd(newLesson);
+      }
+      
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Error saving lesson:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleDelete = () => {
-    if (lesson) {
-      onDelete(lesson.id);
+  const handleDelete = async () => {
+    if (!isEditMode || !lesson) return;
+    
+    setIsSubmitting(true);
+    
+    try {
+      await onDelete(lesson.id);
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Error deleting lesson:", error);
+    } finally {
+      setIsSubmitting(false);
     }
-    onOpenChange(false);
   };
+
+  const handleClassChange = (value: string) => {
+    setSelectedClass(value);
+    setSelectedBatch(null); // Reset batch when class changes
+  };
+
+  // Filter teachers based on selected subject
+  const eligibleTeachers = selectedSubject 
+    ? teachers.filter(teacher => teacher.subjects.includes(selectedSubject))
+    : teachers;
+
+  // Filter classrooms based on whether the subject is a lab subject or not
+  const selectedSubjectObj = subjects.find(s => s.id === selectedSubject);
+  const isLabSubject = selectedSubjectObj && 
+    (selectedSubjectObj.name.toLowerCase().includes('lab') || 
+    selectedSubjectObj.code.toLowerCase().includes('lab'));
+  
+  const eligibleClassrooms = classrooms.filter(c => isLabSubject ? c.isLab : true);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {isNewLesson ? "Add New Lesson" : "Edit Lesson"}
+            {isEditMode ? "Edit Lesson" : "Add Lesson"}
           </DialogTitle>
-          <DialogDescription>
-            {isNewLesson
-              ? "Add a new lesson to the timetable"
-              : "Make changes to the existing lesson"}
-          </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
@@ -131,13 +207,13 @@ export const TimetableEditDialog: React.FC<TimetableEditDialogProps> = ({
             <Label htmlFor="day" className="text-right">
               Day
             </Label>
-            <Select value={selectedDay.toString()} onValueChange={(value) => setSelectedDay(parseInt(value))}>
-              <SelectTrigger className="col-span-3">
+            <Select value={String(selectedDay)} onValueChange={(value) => setSelectedDay(Number(value))}>
+              <SelectTrigger id="day" className="col-span-3">
                 <SelectValue placeholder="Select day" />
               </SelectTrigger>
               <SelectContent>
                 {daysOfWeek.map((day, index) => (
-                  <SelectItem key={day} value={index.toString()}>
+                  <SelectItem key={day} value={String(index)}>
                     {day}
                   </SelectItem>
                 ))}
@@ -147,23 +223,18 @@ export const TimetableEditDialog: React.FC<TimetableEditDialogProps> = ({
 
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="timeSlot" className="text-right">
-              Time Slot
+              Time
             </Label>
-            <Select 
-              value={selectedTimeSlotId} 
-              onValueChange={setSelectedTimeSlotId}
-            >
-              <SelectTrigger className="col-span-3">
+            <Select value={selectedTimeSlot || ''} onValueChange={setSelectedTimeSlot}>
+              <SelectTrigger id="timeSlot" className="col-span-3">
                 <SelectValue placeholder="Select time slot" />
               </SelectTrigger>
               <SelectContent>
-                {timeSlots
-                  .filter(slot => !slot.isBreak)
-                  .map((slot) => (
-                    <SelectItem key={slot.id} value={slot.id}>
-                      {slot.startTime} - {slot.endTime}
-                    </SelectItem>
-                  ))}
+                {nonBreakTimeSlots.map((slot) => (
+                  <SelectItem key={slot.id} value={slot.id}>
+                    {slot.startTime} - {slot.endTime}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -172,11 +243,8 @@ export const TimetableEditDialog: React.FC<TimetableEditDialogProps> = ({
             <Label htmlFor="class" className="text-right">
               Class
             </Label>
-            <Select 
-              value={selectedClassId} 
-              onValueChange={setSelectedClassId}
-            >
-              <SelectTrigger className="col-span-3">
+            <Select value={selectedClass || ''} onValueChange={handleClassChange}>
+              <SelectTrigger id="class" className="col-span-3">
                 <SelectValue placeholder="Select class" />
               </SelectTrigger>
               <SelectContent>
@@ -189,19 +257,63 @@ export const TimetableEditDialog: React.FC<TimetableEditDialogProps> = ({
             </Select>
           </div>
 
+          {batches.length > 0 && (
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="batch" className="text-right">
+                Batch
+              </Label>
+              <Select value={selectedBatch || ''} onValueChange={setSelectedBatch}>
+                <SelectTrigger id="batch" className="col-span-3">
+                  <SelectValue placeholder="Select batch (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No Batch (Entire Class)</SelectItem>
+                  {batches.map((batch) => (
+                    <SelectItem key={batch.id} value={batch.id}>
+                      {batch.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="subject" className="text-right">
+              Subject
+            </Label>
+            <Select value={selectedSubject || ''} onValueChange={setSelectedSubject}>
+              <SelectTrigger id="subject" className="col-span-3">
+                <SelectValue placeholder="Select subject" />
+              </SelectTrigger>
+              <SelectContent>
+                {subjects.map((subject) => (
+                  <SelectItem key={subject.id} value={subject.id}>
+                    {subject.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="teacher" className="text-right">
               Teacher
             </Label>
             <Select 
-              value={selectedTeacherId} 
-              onValueChange={setSelectedTeacherId}
+              value={selectedTeacher || ''} 
+              onValueChange={setSelectedTeacher}
+              disabled={eligibleTeachers.length === 0}
             >
-              <SelectTrigger className="col-span-3">
-                <SelectValue placeholder="Select teacher" />
+              <SelectTrigger id="teacher" className="col-span-3">
+                <SelectValue placeholder={
+                  selectedSubject && eligibleTeachers.length === 0 
+                    ? "No teachers for this subject" 
+                    : "Select teacher"
+                } />
               </SelectTrigger>
               <SelectContent>
-                {teachers.map((teacher) => (
+                {eligibleTeachers.map((teacher) => (
                   <SelectItem key={teacher.id} value={teacher.id}>
                     {teacher.name}
                   </SelectItem>
@@ -211,20 +323,18 @@ export const TimetableEditDialog: React.FC<TimetableEditDialogProps> = ({
           </div>
 
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="subject" className="text-right">
-              Subject
+            <Label htmlFor="classroom" className="text-right">
+              Classroom
             </Label>
-            <Select 
-              value={selectedSubjectId} 
-              onValueChange={setSelectedSubjectId}
-            >
-              <SelectTrigger className="col-span-3">
-                <SelectValue placeholder="Select subject" />
+            <Select value={selectedClassroom || ''} onValueChange={setSelectedClassroom}>
+              <SelectTrigger id="classroom" className="col-span-3">
+                <SelectValue placeholder="Select classroom" />
               </SelectTrigger>
               <SelectContent>
-                {availableSubjects.map((subject) => (
-                  <SelectItem key={subject.id} value={subject.id}>
-                    {subject.name}
+                <SelectItem value="">No specific classroom</SelectItem>
+                {eligibleClassrooms.map((classroom) => (
+                  <SelectItem key={classroom.id} value={classroom.id}>
+                    {classroom.name} ({classroom.isLab ? 'Lab' : 'Room'})
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -233,20 +343,30 @@ export const TimetableEditDialog: React.FC<TimetableEditDialogProps> = ({
         </div>
 
         <DialogFooter>
-          {!isNewLesson && (
+          {isEditMode && (
             <Button 
+              type="button" 
               variant="destructive" 
-              onClick={handleDelete} 
-              className="mr-auto"
+              onClick={handleDelete}
+              disabled={isSubmitting}
             >
               Delete
             </Button>
           )}
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={() => onOpenChange(false)}
+            disabled={isSubmitting}
+          >
             Cancel
           </Button>
-          <Button onClick={handleSave}>
-            {isNewLesson ? "Add" : "Save"}
+          <Button 
+            type="button" 
+            onClick={handleSave}
+            disabled={isSubmitting}
+          >
+            Save
           </Button>
         </DialogFooter>
       </DialogContent>

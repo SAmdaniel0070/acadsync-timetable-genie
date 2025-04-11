@@ -4,8 +4,8 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { DataService } from "@/services/mockData";
 import { TimetableView } from "@/components/timetable/TimetableView";
-import { Timetable, Class, Teacher, Subject, TimeSlot, TimetableView as TimetableViewType, EditMode, Lesson } from "@/types";
-import { Download, Edit, MailIcon, Save, Share2 } from "lucide-react";
+import { Timetable, Class, Teacher, Subject, TimeSlot, TimetableView as TimetableViewType, EditMode, Lesson, Classroom } from "@/types";
+import { Download, Edit, MailIcon, Save, Share2, BuildingIcon } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { 
   Select, 
@@ -25,22 +25,25 @@ const Timetables = () => {
   const [teachers, setTeachers] = React.useState<Teacher[]>([]);
   const [subjects, setSubjects] = React.useState<Subject[]>([]);
   const [timeSlots, setTimeSlots] = React.useState<TimeSlot[]>([]);
+  const [classrooms, setClassrooms] = React.useState<Classroom[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [activeView, setActiveView] = React.useState<TimetableViewType>("master");
   const [selectedClassId, setSelectedClassId] = React.useState<string>("");
   const [selectedTeacherId, setSelectedTeacherId] = React.useState<string>("");
+  const [selectedClassroomId, setSelectedClassroomId] = React.useState<string>("");
   const [editMode, setEditMode] = React.useState<EditMode>("none");
 
   // Fetch all required data
   const fetchData = React.useCallback(async () => {
     try {
       setLoading(true);
-      const [timetableData, classesData, teachersData, subjectsData, timeSlotsData] = await Promise.all([
+      const [timetableData, classesData, teachersData, subjectsData, timeSlotsData, classroomsData] = await Promise.all([
         DataService.getTimetable(),
         DataService.getClasses(),
         DataService.getTeachers(),
         DataService.getSubjects(),
         DataService.getTimeSlots(),
+        DataService.getClassrooms(),
       ]);
       
       setTimetable(timetableData);
@@ -48,10 +51,12 @@ const Timetables = () => {
       setTeachers(teachersData);
       setSubjects(subjectsData);
       setTimeSlots(timeSlotsData);
+      setClassrooms(classroomsData);
       
       // Set default selections if available
       if (classesData.length > 0) setSelectedClassId(classesData[0].id);
       if (teachersData.length > 0) setSelectedTeacherId(teachersData[0].id);
+      if (classroomsData.length > 0) setSelectedClassroomId(classroomsData[0].id);
       
     } catch (error) {
       console.error("Error fetching timetable data:", error);
@@ -229,6 +234,7 @@ const Timetables = () => {
           <TabsTrigger value="master">Master Timetable</TabsTrigger>
           <TabsTrigger value="teacher">Teacher Timetable</TabsTrigger>
           <TabsTrigger value="class">Class Timetable</TabsTrigger>
+          <TabsTrigger value="classroom">Classroom Timetable</TabsTrigger>
         </TabsList>
 
         <div className="mb-4">
@@ -256,6 +262,21 @@ const Timetables = () => {
                 {classes.map((cls) => (
                   <SelectItem key={cls.id} value={cls.id}>
                     {cls.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          
+          {activeView === "classroom" && (
+            <Select value={selectedClassroomId} onValueChange={setSelectedClassroomId}>
+              <SelectTrigger className="w-full md:w-72">
+                <SelectValue placeholder="Select Classroom" />
+              </SelectTrigger>
+              <SelectContent>
+                {classrooms.map((classroom) => (
+                  <SelectItem key={classroom.id} value={classroom.id}>
+                    {classroom.name} ({classroom.isLab ? 'Lab' : 'Room'})
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -317,6 +338,29 @@ const Timetables = () => {
                 timeSlots={timeSlots}
                 view="class"
                 classId={selectedClassId}
+                editMode={editMode}
+                onUpdateLesson={handleUpdateLesson}
+                onDeleteLesson={handleDeleteLesson}
+                onAddLesson={handleAddLesson}
+              />
+            </div>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="classroom" className="mt-0">
+          {timetable && selectedClassroomId && (
+            <div>
+              <h3 className="text-xl font-medium mb-4">
+                Timetable for {classrooms.find(c => c.id === selectedClassroomId)?.name || "Selected Classroom"}
+              </h3>
+              <TimetableView
+                timetable={timetable}
+                classes={classes}
+                teachers={teachers}
+                subjects={subjects}
+                timeSlots={timeSlots}
+                view="classroom"
+                classroomId={selectedClassroomId}
                 editMode={editMode}
                 onUpdateLesson={handleUpdateLesson}
                 onDeleteLesson={handleDeleteLesson}

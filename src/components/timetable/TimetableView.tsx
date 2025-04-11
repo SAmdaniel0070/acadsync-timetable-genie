@@ -1,10 +1,11 @@
 
 import React, { useState } from "react";
-import { Class, Teacher, Subject, TimeSlot, Lesson, Timetable, EditMode } from "@/types";
+import { Class, Teacher, Subject, TimeSlot, Lesson, Timetable, EditMode, Classroom } from "@/types";
 import { cn } from "@/lib/utils";
 import { TimetableEditDialog } from "./TimetableEditDialog";
 import { Edit, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DataService } from "@/services/mockData";
 
 interface TimetableViewProps {
   timetable: Timetable;
@@ -12,9 +13,10 @@ interface TimetableViewProps {
   teachers: Teacher[];
   subjects: Subject[];
   timeSlots: TimeSlot[];
-  view: "master" | "teacher" | "class";
+  view: "master" | "teacher" | "class" | "classroom";
   teacherId?: string;
   classId?: string;
+  classroomId?: string;
   editMode?: EditMode;
   onUpdateLesson?: (lesson: Lesson) => Promise<void>;
   onDeleteLesson?: (id: string) => Promise<void>;
@@ -32,6 +34,7 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
   view,
   teacherId,
   classId,
+  classroomId,
   editMode = "none",
   onUpdateLesson,
   onDeleteLesson,
@@ -40,6 +43,21 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [addingLessonAt, setAddingLessonAt] = useState<{ day: number; timeSlotId: string } | null>(null);
+  const [classrooms, setClassrooms] = useState<Classroom[]>([]);
+
+  // Fetch classrooms for displaying in lesson details
+  React.useEffect(() => {
+    const fetchClassrooms = async () => {
+      try {
+        const classroomsData = await DataService.getClassrooms();
+        setClassrooms(classroomsData);
+      } catch (error) {
+        console.error("Error fetching classrooms:", error);
+      }
+    };
+    
+    fetchClassrooms();
+  }, []);
 
   // Filter lessons based on view type
   const filteredLessons = React.useMemo(() => {
@@ -47,9 +65,11 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
       return timetable.lessons.filter((lesson) => lesson.teacherId === teacherId);
     } else if (view === "class" && classId) {
       return timetable.lessons.filter((lesson) => lesson.classId === classId);
+    } else if (view === "classroom" && classroomId) {
+      return timetable.lessons.filter((lesson) => lesson.classroomId === classroomId);
     }
     return timetable.lessons;
-  }, [timetable.lessons, view, teacherId, classId]);
+  }, [timetable.lessons, view, teacherId, classId, classroomId]);
 
   // Filter out break slots for display
   const teachingTimeSlots = timeSlots.filter(slot => !slot.isBreak);
@@ -66,6 +86,11 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
 
   const getSubjectName = (subjectId: string) => {
     return subjects.find((s) => s.id === subjectId)?.name || "Unknown Subject";
+  };
+
+  const getClassroomName = (classroomId?: string) => {
+    if (!classroomId) return "No Room";
+    return classrooms.find((c) => c.id === classroomId)?.name || "Unknown Room";
   };
 
   // Helper to get the color for a subject (for visual distinction)
@@ -87,13 +112,14 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
   };
 
   // Find a lesson for a specific day and time slot
-  const getLessonFor = (day: number, timeSlotId: string, classId?: string, teacherId?: string) => {
+  const getLessonFor = (day: number, timeSlotId: string, classId?: string, teacherId?: string, classroomId?: string) => {
     return filteredLessons.find(
       (lesson) =>
         lesson.day === day &&
         lesson.timeSlotId === timeSlotId &&
         (classId ? lesson.classId === classId : true) &&
-        (teacherId ? lesson.teacherId === teacherId : true)
+        (teacherId ? lesson.teacherId === teacherId : true) &&
+        (classroomId ? lesson.classroomId === classroomId : true)
     );
   };
 
@@ -176,6 +202,9 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
                   <div className="text-xs text-gray-500">
                     {getTeacherName(lesson.teacherId)}
                   </div>
+                  <div className="text-xs text-gray-500">
+                    {getClassroomName(lesson.classroomId)}
+                  </div>
                   {editMode === "edit" && (
                     <Button
                       variant="ghost"
@@ -204,12 +233,13 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
         </div>
       );
     } else {
-      // For teacher or class view
+      // For teacher, class, or classroom view
       const lesson = getLessonFor(
         day,
         timeSlot.id,
         view === "class" ? classId : undefined,
-        view === "teacher" ? teacherId : undefined
+        view === "teacher" ? teacherId : undefined,
+        view === "classroom" ? classroomId : undefined
       );
 
       return (
@@ -222,11 +252,14 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
               )}
             >
               <div className="font-medium">{getSubjectName(lesson.subjectId)}</div>
-              {view === "teacher" && (
+              {view !== "class" && (
                 <div className="text-xs">{getClassName(lesson.classId)}</div>
               )}
-              {view === "class" && (
+              {view !== "teacher" && (
                 <div className="text-xs">{getTeacherName(lesson.teacherId)}</div>
+              )}
+              {view !== "classroom" && lesson.classroomId && (
+                <div className="text-xs text-gray-600">{getClassroomName(lesson.classroomId)}</div>
               )}
               {editMode === "edit" && (
                 <Button

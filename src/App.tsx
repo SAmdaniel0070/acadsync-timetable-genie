@@ -8,6 +8,7 @@ import NotFound from "./pages/NotFound";
 import Layout from "./components/layout/Layout";
 import Dashboard from "./pages/Dashboard";
 import Classes from "./pages/Classes";
+import Classrooms from "./pages/Classrooms";
 import Timetables from "./pages/Timetables";
 import Teachers from "./pages/Teachers";
 import Subjects from "./pages/Subjects";
@@ -26,6 +27,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/classes" element={<Classes />} />
+            <Route path="/classrooms" element={<Classrooms />} />
             <Route path="/timetables" element={<Timetables />} />
             <Route path="/teachers" element={<Teachers />} />
             <Route path="/subjects" element={<Subjects />} />

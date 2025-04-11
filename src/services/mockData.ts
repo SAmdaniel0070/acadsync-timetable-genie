@@ -1,5 +1,4 @@
-
-import { Class, Teacher, Subject, TimeSlot, Lesson, Timetable, Batch } from "@/types";
+import { Class, Teacher, Subject, TimeSlot, Lesson, Timetable, Batch, Classroom } from "@/types";
 
 // Helper function to generate a simple ID
 const generateId = () => Math.random().toString(36).substring(2, 9);
@@ -57,11 +56,20 @@ export const timeSlots: TimeSlot[] = [
   { id: "ts8", startTime: "15:15", endTime: "16:15", isBreak: false },
 ];
 
+// Mock Classrooms
+export const classrooms: Classroom[] = [
+  { id: "cr1", name: "Room 101", capacity: 40, isLab: false },
+  { id: "cr2", name: "Room 102", capacity: 30, isLab: false },
+  { id: "cr3", name: "Computer Lab", capacity: 25, isLab: true },
+  { id: "cr4", name: "Electronics Lab", capacity: 20, isLab: true },
+];
+
 // Improved helper function to generate lessons with conflict avoidance
 const generateLessons = (): Lesson[] => {
   const lessons: Lesson[] = [];
   const teacherSchedule: Record<string, Record<number, Record<string, boolean>>> = {};
   const classSchedule: Record<string, Record<number, Record<string, boolean>>> = {};
+  const classroomSchedule: Record<string, Record<number, Record<string, boolean>>> = {};
   
   // Initialize schedule trackers
   teachers.forEach(teacher => {
@@ -75,6 +83,13 @@ const generateLessons = (): Lesson[] => {
     classSchedule[cls.id] = {};
     for (let day = 0; day < 6; day++) {
       classSchedule[cls.id][day] = {};
+    }
+  });
+  
+  classrooms.forEach(classroom => {
+    classroomSchedule[classroom.id] = {};
+    for (let day = 0; day < 6; day++) {
+      classroomSchedule[classroom.id][day] = {};
     }
   });
   
@@ -107,19 +122,36 @@ const generateLessons = (): Lesson[] => {
             const subjectIndex = Math.floor(Math.random() * eligibleSubjects.length);
             const subject = eligibleSubjects[subjectIndex];
             
-            // Mark this slot as occupied for both teacher and class
-            teacherSchedule[teacher.id][day][timeSlot.id] = true;
-            classSchedule[cls.id][day][timeSlot.id] = true;
+            // Find an available classroom
+            const isLabSubject = subject.name.toLowerCase().includes('lab') || subject.code.toLowerCase().includes('lab');
             
-            // Create the lesson
-            lessons.push({
-              id: generateId(),
-              classId: cls.id,
-              subjectId: subject.id,
-              teacherId: teacher.id,
-              day,
-              timeSlotId: timeSlot.id,
+            const eligibleClassrooms = classrooms.filter(classroom => {
+              // Check if classroom is available at this time and matches lab requirement
+              return !classroomSchedule[classroom.id][day][timeSlot.id] && 
+                    ((isLabSubject && classroom.isLab) || (!isLabSubject && !classroom.isLab));
             });
+            
+            if (eligibleClassrooms.length > 0) {
+              // Select a random eligible classroom
+              const classroomIndex = Math.floor(Math.random() * eligibleClassrooms.length);
+              const classroom = eligibleClassrooms[classroomIndex];
+              
+              // Mark this slot as occupied for teacher, class, and classroom
+              teacherSchedule[teacher.id][day][timeSlot.id] = true;
+              classSchedule[cls.id][day][timeSlot.id] = true;
+              classroomSchedule[classroom.id][day][timeSlot.id] = true;
+              
+              // Create the lesson
+              lessons.push({
+                id: generateId(),
+                classId: cls.id,
+                subjectId: subject.id,
+                teacherId: teacher.id,
+                day,
+                timeSlotId: timeSlot.id,
+                classroomId: classroom.id
+              });
+            }
           }
         }
       });
@@ -143,6 +175,7 @@ export const DataService = {
   getSubjects: () => Promise.resolve([...subjects]),
   getTimeSlots: () => Promise.resolve([...timeSlots]),
   getTimetable: () => Promise.resolve({...timetable}),
+  getClassrooms: () => Promise.resolve([...classrooms]),
   
   // CRUD operations for classes
   addClass: (newClass: Omit<Class, "id" | "batches">) => {
@@ -260,6 +293,37 @@ export const DataService = {
     return Promise.reject("Time slot not found");
   },
   
+  // CRUD operations for classrooms
+  addClassroom: (newClassroom: Omit<Classroom, "id">) => {
+    const classroomWithId = { ...newClassroom, id: generateId() };
+    classrooms.push(classroomWithId);
+    return Promise.resolve(classroomWithId);
+  },
+  
+  updateClassroom: (updatedClassroom: Classroom) => {
+    const index = classrooms.findIndex(c => c.id === updatedClassroom.id);
+    if (index !== -1) {
+      classrooms[index] = updatedClassroom;
+      return Promise.resolve(updatedClassroom);
+    }
+    return Promise.reject("Classroom not found");
+  },
+  
+  deleteClassroom: (id: string) => {
+    const index = classrooms.findIndex(c => c.id === id);
+    if (index !== -1) {
+      const deletedClassroom = classrooms.splice(index, 1)[0];
+      // Also update any lessons that used this classroom to have no classroom assigned
+      timetable.lessons.forEach(lesson => {
+        if (lesson.classroomId === id) {
+          lesson.classroomId = undefined;
+        }
+      });
+      return Promise.resolve(deletedClassroom);
+    }
+    return Promise.reject("Classroom not found");
+  },
+
   // Timetable operations
   generateTimetable: () => {
     // Generate a new timetable with improved algorithm
@@ -305,6 +369,14 @@ export const DataService = {
     return Promise.resolve({
       ...timetable,
       lessons: classLessons,
+    });
+  },
+  
+  getClassroomTimetable: (classroomId: string) => {
+    const classroomLessons = timetable.lessons.filter(l => l.classroomId === classroomId);
+    return Promise.resolve({
+      ...timetable,
+      lessons: classroomLessons,
     });
   },
 
