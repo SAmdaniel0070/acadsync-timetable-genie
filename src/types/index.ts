@@ -1,4 +1,3 @@
-
 // Class represents a group of students
 export interface Class {
   id: string;
@@ -27,6 +26,7 @@ export interface Subject {
   id: string;
   name: string;
   code: string; // e.g., "CS101"
+  classes?: string[]; // Array of class IDs this subject is assigned to
 }
 
 // TimeSlot represents a period in the day

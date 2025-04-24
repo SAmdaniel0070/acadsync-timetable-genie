@@ -1,119 +1,92 @@
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
-import { DataTable } from "@/components/ui/data-table";
-import { Subject } from "@/types";
+import { Plus } from "lucide-react";
 import { DataService } from "@/services/mockData";
-import { Plus, Edit, Trash } from "lucide-react";
+import { Subject, Class } from "@/types";
+import { SubjectFormDialog } from "@/components/subject/SubjectFormDialog";
+import { SubjectList } from "@/components/subject/SubjectList";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 const Subjects = () => {
   const { toast } = useToast();
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [currentSubject, setCurrentSubject] = useState<Subject | null>(null);
-  const [formData, setFormData] = useState({
-    name: "",
-    code: "",
-  });
+  const [subjects, setSubjects] = React.useState<Subject[]>([]);
+  const [classes, setClasses] = React.useState<Class[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [isDialogOpen, setIsDialogOpen] = React.useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
+  const [currentSubject, setCurrentSubject] = React.useState<Subject | null>(null);
 
-  const fetchSubjects = async () => {
+  const fetchData = React.useCallback(async () => {
     try {
       setLoading(true);
-      const data = await DataService.getSubjects();
-      setSubjects(data);
+      const [subjectsData, classesData] = await Promise.all([
+        DataService.getSubjects(),
+        DataService.getClasses(),
+      ]);
+      setSubjects(subjectsData);
+      setClasses(classesData);
     } catch (error) {
-      console.error("Error fetching subjects:", error);
+      console.error("Error fetching data:", error);
       toast({
         title: "Error",
-        description: "Failed to fetch subjects data.",
+        description: "Failed to fetch data.",
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
-  useEffect(() => {
-    fetchSubjects();
-  }, []);
+  React.useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-  };
-
-  const handleAddSubject = async () => {
+  const handleSubmit = async (data: Partial<Subject>) => {
     try {
-      if (!formData.name || !formData.code) {
-        toast({
-          title: "Error",
-          description: "Subject name and code are required.",
-          variant: "destructive",
-        });
-        return;
-      }
-
       if (currentSubject) {
-        // Update existing subject
         const updatedSubject = await DataService.updateSubject({
           ...currentSubject,
-          name: formData.name,
-          code: formData.code,
+          ...data,
         });
-
         setSubjects(subjects.map(s => 
           s.id === updatedSubject.id ? updatedSubject : s
         ));
-
         toast({
           title: "Success",
           description: "Subject updated successfully.",
         });
       } else {
-        // Add new subject
-        const newSubject = await DataService.addSubject({
-          name: formData.name,
-          code: formData.code,
-        });
-
+        const newSubject = await DataService.addSubject(data);
         setSubjects([...subjects, newSubject]);
-
         toast({
           title: "Success",
           description: "Subject added successfully.",
         });
       }
-      
       setIsDialogOpen(false);
       resetForm();
     } catch (error) {
       console.error("Error saving subject:", error);
       toast({
         title: "Error",
-        description: "Failed to save subject data.",
+        description: "Failed to save subject.",
         variant: "destructive",
       });
     }
   };
 
-  const handleDeleteSubject = async () => {
+  const handleDelete = async () => {
     try {
       if (currentSubject) {
         await DataService.deleteSubject(currentSubject.id);
         setSubjects(subjects.filter(s => s.id !== currentSubject.id));
-        
         toast({
           title: "Success",
           description: "Subject deleted successfully.",
         });
-        
         setIsDeleteDialogOpen(false);
         resetForm();
       }
@@ -127,127 +100,44 @@ const Subjects = () => {
     }
   };
 
-  const openAddDialog = () => {
-    resetForm();
-    setIsDialogOpen(true);
-  };
-
-  const openEditDialog = (subject: Subject) => {
-    setCurrentSubject(subject);
-    setFormData({
-      name: subject.name,
-      code: subject.code,
-    });
-    setIsDialogOpen(true);
-  };
-
-  const openDeleteDialog = (subject: Subject) => {
-    setCurrentSubject(subject);
-    setIsDeleteDialogOpen(true);
-  };
-
   const resetForm = () => {
     setCurrentSubject(null);
-    setFormData({
-      name: "",
-      code: "",
-    });
   };
-
-  const columns = [
-    { key: "name", title: "Name" },
-    { key: "code", title: "Code" },
-    {
-      key: "actions",
-      title: "Actions",
-      render: (subject: Subject) => (
-        <div className="flex space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              openEditDialog(subject);
-            }}
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              openDeleteDialog(subject);
-            }}
-          >
-            <Trash className="h-4 w-4" />
-          </Button>
-        </div>
-      ),
-    },
-  ];
 
   return (
     <div className="animate-fade-in">
       <PageHeader
         title="Subjects"
-        description="Manage courses and subjects"
+        description="Manage subjects and their assignments to classes"
         actions={
-          <Button onClick={openAddDialog}>
+          <Button onClick={() => setIsDialogOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Add Subject
           </Button>
         }
       />
 
-      <DataTable
-        data={subjects}
-        columns={columns}
-        isLoading={loading}
+      <SubjectList
+        subjects={subjects}
+        classes={classes}
+        onEdit={(subject) => {
+          setCurrentSubject(subject);
+          setIsDialogOpen(true);
+        }}
+        onDelete={(subject) => {
+          setCurrentSubject(subject);
+          setIsDeleteDialogOpen(true);
+        }}
       />
 
-      {/* Add/Edit Subject Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {currentSubject ? "Edit Subject" : "Add New Subject"}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="grid gap-2">
-              <Label htmlFor="name">Subject Name *</Label>
-              <Input
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                placeholder="Enter subject name"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="code">Subject Code *</Label>
-              <Input
-                id="code"
-                name="code"
-                value={formData.code}
-                onChange={handleInputChange}
-                placeholder="e.g. CS101"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleAddSubject}>
-              {currentSubject ? "Update" : "Add"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <SubjectFormDialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        onSubmit={handleSubmit}
+        classes={classes}
+        currentSubject={currentSubject}
+      />
 
-      {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -261,7 +151,7 @@ const Subjects = () => {
             <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDeleteSubject}>
+            <Button variant="destructive" onClick={handleDelete}>
               Delete
             </Button>
           </DialogFooter>
