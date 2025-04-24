@@ -1,4 +1,3 @@
-
 import React from "react";
 import { PageHeader } from "@/components/ui/page-header";
 import { DataService } from "@/services/mockDataService";
@@ -166,7 +165,7 @@ const Timetables = () => {
   };
 
   const toggleEditMode = () => {
-    setEditMode(editMode === "none" ? "edit" : "none");
+    setEditMode(prev => prev === "none" ? "edit" : "none");
   };
 
   const handleSaveChanges = async () => {

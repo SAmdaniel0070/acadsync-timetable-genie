@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -267,7 +266,7 @@ export const TimetableEditDialog: React.FC<TimetableEditDialogProps> = ({
                   <SelectValue placeholder="Select batch (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No Batch (Entire Class)</SelectItem>
+                  <SelectItem value="no-batch">No Batch (Entire Class)</SelectItem>
                   {batches.map((batch) => (
                     <SelectItem key={batch.id} value={batch.id}>
                       {batch.name}
@@ -331,7 +330,7 @@ export const TimetableEditDialog: React.FC<TimetableEditDialogProps> = ({
                 <SelectValue placeholder="Select classroom" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">No specific classroom</SelectItem>
+                <SelectItem value="no-classroom">No specific classroom</SelectItem>
                 {eligibleClassrooms.map((classroom) => (
                   <SelectItem key={classroom.id} value={classroom.id}>
                     {classroom.name} ({classroom.isLab ? 'Lab' : 'Room'})

@@ -28,10 +28,10 @@ export const TimetableActions: React.FC<TimetableActionsProps> = ({
       <div className="flex items-center space-x-2">
         <Switch 
           id="edit-mode" 
-          checked={editMode === "edit"} 
+          checked={editMode === "edit"}
           onCheckedChange={toggleEditMode}
         />
-        <Label htmlFor="edit-mode">
+        <Label htmlFor="edit-mode" className="cursor-pointer">
           {editMode === "edit" ? (
             <span className="flex items-center text-brand-600">
               <Edit className="mr-1 h-4 w-4" />
