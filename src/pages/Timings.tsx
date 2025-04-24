@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { PageHeader } from "@/components/ui/page-header";
@@ -20,6 +19,7 @@ const Timings = () => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [currentTimeSlot, setCurrentTimeSlot] = useState<TimeSlot | null>(null);
   const [formData, setFormData] = useState({
+    name: "",
     startTime: "",
     endTime: "",
     isBreak: false,
@@ -66,10 +66,14 @@ const Timings = () => {
         return;
       }
 
+      // Generate name if empty
+      const name = formData.name || `${formData.startTime} - ${formData.endTime}`;
+
       if (currentTimeSlot) {
         // Update existing time slot
         const updatedTimeSlot = await DataService.updateTimeSlot({
           ...currentTimeSlot,
+          name: name,
           startTime: formData.startTime,
           endTime: formData.endTime,
           isBreak: formData.isBreak,
@@ -86,6 +90,7 @@ const Timings = () => {
       } else {
         // Add new time slot
         const newTimeSlot = await DataService.addTimeSlot({
+          name: name,
           startTime: formData.startTime,
           endTime: formData.endTime,
           isBreak: formData.isBreak,
@@ -143,6 +148,7 @@ const Timings = () => {
   const openEditDialog = (timeSlot: TimeSlot) => {
     setCurrentTimeSlot(timeSlot);
     setFormData({
+      name: timeSlot.name,
       startTime: timeSlot.startTime,
       endTime: timeSlot.endTime,
       isBreak: timeSlot.isBreak,
@@ -158,6 +164,7 @@ const Timings = () => {
   const resetForm = () => {
     setCurrentTimeSlot(null);
     setFormData({
+      name: "",
       startTime: "",
       endTime: "",
       isBreak: false,
@@ -243,6 +250,7 @@ const Timings = () => {
     },
   ];
 
+  // In the dialog form, add a name field
   return (
     <div className="animate-fade-in">
       <PageHeader
@@ -271,6 +279,16 @@ const Timings = () => {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Name</Label>
+              <Input
+                id="name"
+                name="name"
+                value={formData.name}
+                onChange={handleInputChange}
+                placeholder="e.g. Period 1 (leave empty to auto-generate)"
+              />
+            </div>
             <div className="grid gap-2">
               <Label htmlFor="startTime">Start Time *</Label>
               <Input

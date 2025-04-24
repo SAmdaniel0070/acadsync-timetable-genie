@@ -1,4 +1,3 @@
-
 import {
   Timetable,
   Class,
@@ -7,7 +6,6 @@ import {
   TimeSlot,
   Classroom,
   Batch,
-  SubjectFormValues,
   Lesson
 } from "@/types";
 
@@ -250,27 +248,28 @@ export const DataService = {
     });
   },
 
-  addSubject: async (subjectData: SubjectFormValues): Promise<Subject> => {
+  addSubject: async (newSubject: Omit<Subject, "id">): Promise<Subject> => {
     return new Promise((resolve) => {
       setTimeout(() => {
-        const newSubject: Subject = {
-          id: Math.random().toString(36).substring(7),
-          ...subjectData,
+        const id = Math.random().toString(36).substring(7);
+        const subjectWithId: Subject = { 
+          ...newSubject, 
+          id 
         };
-        mockSubjects.push(newSubject);
-        resolve(newSubject);
+        mockSubjects.push(subjectWithId);
+        resolve(subjectWithId);
       }, 500);
     });
   },
-
-  updateSubject: async (subjectData: Subject): Promise<Subject> => {
+  
+  updateSubject: async (updatedSubject: Subject): Promise<Subject> => {
     return new Promise((resolve) => {
       setTimeout(() => {
-        const index = mockSubjects.findIndex((s) => s.id === subjectData.id);
+        const index = mockSubjects.findIndex((s) => s.id === updatedSubject.id);
         if (index !== -1) {
-          mockSubjects[index] = subjectData;
+          mockSubjects[index] = updatedSubject;
         }
-        resolve(subjectData);
+        resolve(updatedSubject);
       }, 500);
     });
   },
@@ -297,5 +296,42 @@ export const DataService = {
         resolve({...mockTimetable});
       }, 500);
     });
-  }
+  },
+
+  updateTimeSlot: async (updatedTimeSlot: TimeSlot): Promise<TimeSlot> => {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        const index = mockTimeSlots.findIndex((ts) => ts.id === updatedTimeSlot.id);
+        if (index !== -1) {
+          mockTimeSlots[index] = updatedTimeSlot;
+          resolve(updatedTimeSlot);
+        } else {
+          reject(new Error("Time slot not found"));
+        }
+      }, 500);
+    });
+  },
+  
+  addTimeSlot: async (newTimeSlot: Omit<TimeSlot, "id">): Promise<TimeSlot> => {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const id = Math.random().toString(36).substring(7);
+        const timeSlotWithId: TimeSlot = { ...newTimeSlot, id };
+        mockTimeSlots.push(timeSlotWithId);
+        resolve(timeSlotWithId);
+      }, 500);
+    });
+  },
+  
+  deleteTimeSlot: async (id: string): Promise<void> => {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const index = mockTimeSlots.findIndex((ts) => ts.id === id);
+        if (index !== -1) {
+          mockTimeSlots.splice(index, 1);
+        }
+        resolve();
+      }, 500);
+    });
+  },
 };

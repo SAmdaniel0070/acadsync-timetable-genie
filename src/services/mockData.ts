@@ -1,3 +1,4 @@
+
 import { Class, Teacher, Subject, TimeSlot, Lesson, Timetable, Batch, Classroom } from "@/types";
 
 // Helper function to generate a simple ID
@@ -25,14 +26,14 @@ classes[1].batches = batches.filter(b => b.classId === "c2");
 
 // Mock Subjects
 export const subjects: Subject[] = [
-  { id: "s1", name: "Introduction to Programming", code: "CS101" },
-  { id: "s2", name: "Data Structures", code: "CS201" },
-  { id: "s3", name: "Digital Logic", code: "EC101" },
-  { id: "s4", name: "Linear Algebra", code: "MA101" },
-  { id: "s5", name: "Calculus", code: "MA201" },
-  { id: "s6", name: "Computer Networks", code: "CS301" },
-  { id: "s7", name: "Database Systems", code: "CS401" },
-  { id: "s8", name: "Signals and Systems", code: "EC201" },
+  { id: "s1", name: "Introduction to Programming", code: "CS101", periodsPerWeek: 5, classes: ["c1"] },
+  { id: "s2", name: "Data Structures", code: "CS201", periodsPerWeek: 4, classes: ["c2"] },
+  { id: "s3", name: "Digital Logic", code: "EC101", periodsPerWeek: 3, classes: ["c3"] },
+  { id: "s4", name: "Linear Algebra", code: "MA101", periodsPerWeek: 4, classes: ["c5"] },
+  { id: "s5", name: "Calculus", code: "MA201", periodsPerWeek: 5, classes: ["c5"] },
+  { id: "s6", name: "Computer Networks", code: "CS301", periodsPerWeek: 3, classes: ["c2"] },
+  { id: "s7", name: "Database Systems", code: "CS401", periodsPerWeek: 4, classes: ["c2"] },
+  { id: "s8", name: "Signals and Systems", code: "EC201", periodsPerWeek: 3, classes: ["c4"] },
 ];
 
 // Mock Teachers
@@ -46,14 +47,14 @@ export const teachers: Teacher[] = [
 
 // Mock Time Slots
 export const timeSlots: TimeSlot[] = [
-  { id: "ts1", startTime: "09:00", endTime: "10:00", isBreak: false },
-  { id: "ts2", startTime: "10:00", endTime: "11:00", isBreak: false },
-  { id: "ts3", startTime: "11:00", endTime: "12:00", isBreak: false },
-  { id: "ts4", startTime: "12:00", endTime: "13:00", isBreak: true }, // Lunch break
-  { id: "ts5", startTime: "13:00", endTime: "14:00", isBreak: false },
-  { id: "ts6", startTime: "14:00", endTime: "15:00", isBreak: false },
-  { id: "ts7", startTime: "15:00", endTime: "15:15", isBreak: true }, // Short break
-  { id: "ts8", startTime: "15:15", endTime: "16:15", isBreak: false },
+  { id: "ts1", name: "Period 1", startTime: "09:00", endTime: "10:00", isBreak: false },
+  { id: "ts2", name: "Period 2", startTime: "10:00", endTime: "11:00", isBreak: false },
+  { id: "ts3", name: "Period 3", startTime: "11:00", endTime: "12:00", isBreak: false },
+  { id: "ts4", name: "Lunch", startTime: "12:00", endTime: "13:00", isBreak: true },
+  { id: "ts5", name: "Period 4", startTime: "13:00", endTime: "14:00", isBreak: false },
+  { id: "ts6", name: "Period 5", startTime: "14:00", endTime: "15:00", isBreak: false },
+  { id: "ts7", name: "Short Break", startTime: "15:00", endTime: "15:15", isBreak: true },
+  { id: "ts8", name: "Period 6", startTime: "15:15", endTime: "16:15", isBreak: false },
 ];
 
 // Mock Classrooms
@@ -165,6 +166,7 @@ const generateLessons = (): Lesson[] => {
 export const timetable: Timetable = {
   id: "tt1",
   name: "Academic Year 2023-2024 Semester 1",
+  academicYear: "2023-2024",
   lessons: generateLessons(),
 };
 

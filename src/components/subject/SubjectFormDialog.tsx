@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -24,7 +25,8 @@ export const SubjectFormDialog = ({
   const [formData, setFormData] = React.useState<Omit<Subject, "id">>({
     name: currentSubject?.name || "",
     code: currentSubject?.code || "",
-    classes: currentSubject?.classes || []
+    classes: currentSubject?.classes || [],
+    periodsPerWeek: currentSubject?.periodsPerWeek || 1
   });
 
   const handleSubmit = () => {
@@ -61,9 +63,21 @@ export const SubjectFormDialog = ({
             />
           </div>
           <div className="grid gap-2">
+            <Label htmlFor="periodsPerWeek">Periods Per Week *</Label>
+            <Input
+              id="periodsPerWeek"
+              name="periodsPerWeek"
+              type="number"
+              min="1"
+              value={formData.periodsPerWeek}
+              onChange={(e) => setFormData({ ...formData, periodsPerWeek: parseInt(e.target.value) || 1 })}
+              placeholder="e.g. 5"
+            />
+          </div>
+          <div className="grid gap-2">
             <Label>Assign to Classes</Label>
             <Select
-              value={formData.classes.join(",")}
+              value={formData.classes?.join(",")}
               onValueChange={(value) => setFormData({ 
                 ...formData, 
                 classes: value ? value.split(",") : [] 
