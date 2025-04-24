@@ -1,4 +1,3 @@
-
 import React from "react";
 import { PageHeader } from "@/components/ui/page-header";
 import { DataService } from "@/services/mockData";
@@ -7,6 +6,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { TimetableTabs } from "@/components/timetable/TimetableTabs";
 import { TimetableActions } from "@/components/timetable/TimetableActions";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { Save } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const Timetables = () => {
   const { toast } = useToast();
@@ -167,6 +168,30 @@ const Timetables = () => {
     setEditMode(editMode === "none" ? "edit" : "none");
   };
 
+  const handleSaveChanges = async () => {
+    try {
+      setLoading(true);
+      if (!timetable) return;
+
+      // Save the current timetable state to the database
+      await DataService.updateTimetable(timetable);
+      
+      toast({
+        title: "Success",
+        description: "Timetable changes saved successfully",
+      });
+    } catch (error) {
+      console.error("Error saving timetable:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save timetable changes",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-[400px] flex items-center justify-center">
@@ -180,6 +205,12 @@ const Timetables = () => {
       <PageHeader 
         title="Timetables" 
         description="Generate and view timetables"
+        actions={
+          <Button onClick={handleSaveChanges} disabled={!timetable}>
+            <Save className="mr-2 h-4 w-4" />
+            Save Changes
+          </Button>
+        }
       />
 
       <div className="mb-6">
