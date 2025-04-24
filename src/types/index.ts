@@ -1,3 +1,4 @@
+
 // Class represents a group of students
 export interface Class {
   id: string;
@@ -27,11 +28,13 @@ export interface Subject {
   name: string;
   code: string; // e.g., "CS101"
   classes?: string[]; // Array of class IDs this subject is assigned to
+  periodsPerWeek: number; // Number of periods per week for this subject
 }
 
 // TimeSlot represents a period in the day
 export interface TimeSlot {
   id: string;
+  name: string; // e.g., "Period 1"
   startTime: string; // e.g., "09:00"
   endTime: string; // e.g., "10:00"
   isBreak: boolean; // true if this is a recess/lunch period
@@ -61,7 +64,16 @@ export interface Lesson {
 export interface Timetable {
   id: string;
   name: string;
+  academicYear: string;
   lessons: Lesson[];
+}
+
+// Form values interfaces
+export interface SubjectFormValues {
+  name: string;
+  code: string;
+  classes?: string[];
+  periodsPerWeek: number;
 }
 
 // TimetableView is used to display different views of a timetable

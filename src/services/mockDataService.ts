@@ -1,3 +1,4 @@
+
 import {
   Timetable,
   Class,
@@ -7,6 +8,7 @@ import {
   Classroom,
   Batch,
   SubjectFormValues,
+  Lesson
 } from "@/types";
 
 const mockTimetable: Timetable = {
@@ -63,23 +65,23 @@ const mockTimetable: Timetable = {
 };
 
 const mockClasses: Class[] = [
-  { id: "1", name: "Class A", yearId: "1" },
-  { id: "2", name: "Class B", yearId: "1" },
-  { id: "3", name: "Class C", yearId: "2" },
+  { id: "1", name: "Class A", year: 1 },
+  { id: "2", name: "Class B", year: 1 },
+  { id: "3", name: "Class C", year: 2 },
 ];
 
 const mockTeachers: Teacher[] = [
-  { id: "1", name: "Mr. Smith", subjectIds: ["1", "4"] },
-  { id: "2", name: "Ms. Johnson", subjectIds: ["2", "5"] },
-  { id: "3", name: "Mr. Williams", subjectIds: ["3"] },
+  { id: "1", name: "Mr. Smith", subjects: ["1", "4"] },
+  { id: "2", name: "Ms. Johnson", subjects: ["2", "5"] },
+  { id: "3", name: "Mr. Williams", subjects: ["3"] },
 ];
 
 const mockSubjects: Subject[] = [
-  { id: "1", name: "Math", code: "M101", classIds: ["1"], periodsPerWeek: 5 },
-  { id: "2", name: "Science", code: "S101", classIds: ["2"], periodsPerWeek: 4 },
-  { id: "3", name: "English", code: "E101", classIds: ["3"], periodsPerWeek: 5 },
-  { id: "4", name: "History", code: "H101", classIds: ["1"], periodsPerWeek: 3 },
-  { id: "5", name: "Art", code: "A101", classIds: ["2"], periodsPerWeek: 2 },
+  { id: "1", name: "Math", code: "M101", classes: ["1"], periodsPerWeek: 5 },
+  { id: "2", name: "Science", code: "S101", classes: ["2"], periodsPerWeek: 4 },
+  { id: "3", name: "English", code: "E101", classes: ["3"], periodsPerWeek: 5 },
+  { id: "4", name: "History", code: "H101", classes: ["1"], periodsPerWeek: 3 },
+  { id: "5", name: "Art", code: "A101", classes: ["2"], periodsPerWeek: 2 },
 ];
 
 const mockTimeSlots: TimeSlot[] = [
@@ -103,6 +105,7 @@ const mockBatches: Batch[] = [
   { id: "3", name: "Batch C", classId: "2" },
 ];
 
+// Mock data service methods
 export const DataService = {
   getTimetable: async (): Promise<Timetable> => {
     return new Promise((resolve) => {
@@ -174,7 +177,7 @@ export const DataService = {
     });
   },
 
-  updateLesson: async (lesson: any): Promise<void> => {
+  updateLesson: async (lesson: Lesson): Promise<void> => {
     return new Promise((resolve) => {
       setTimeout(() => {
         console.log("Lesson updated:", lesson);
@@ -192,7 +195,7 @@ export const DataService = {
     });
   },
 
-  addLesson: async (lesson: any): Promise<void> => {
+  addLesson: async (lesson: Omit<Lesson, "id">): Promise<void> => {
     return new Promise((resolve) => {
       setTimeout(() => {
         console.log("Lesson added:", lesson);
@@ -283,25 +286,16 @@ export const DataService = {
       }, 500);
     });
   },
-  updateTimetable: async (timetable: Timetable) => {
-    try {
-      const response = await fetch(`/api/timetables/${timetable.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(timetable),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update timetable');
-      }
-
-      const updatedTimetable = await response.json();
-      return updatedTimetable;
-    } catch (error) {
-      console.error('Error updating timetable:', error);
-      throw error;
-    }
-  },
+  
+  updateTimetable: async (timetable: Timetable): Promise<Timetable> => {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        // In a real application, this would make an API call
+        console.log('Updating timetable:', timetable);
+        // For mock service, we'll just update our local copy
+        Object.assign(mockTimetable, timetable);
+        resolve({...mockTimetable});
+      }, 500);
+    });
+  }
 };
