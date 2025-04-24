@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -10,7 +9,7 @@ import { Class, Subject } from "@/types";
 interface SubjectFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: Partial<Subject>) => void;
+  onSubmit: (data: Omit<Subject, "id">) => void;
   classes: Class[];
   currentSubject: Subject | null;
 }
@@ -22,10 +21,10 @@ export const SubjectFormDialog = ({
   classes,
   currentSubject,
 }: SubjectFormDialogProps) => {
-  const [formData, setFormData] = React.useState({
+  const [formData, setFormData] = React.useState<Omit<Subject, "id">>({
     name: currentSubject?.name || "",
     code: currentSubject?.code || "",
-    selectedClasses: currentSubject?.classes || []
+    classes: currentSubject?.classes || []
   });
 
   const handleSubmit = () => {
@@ -64,10 +63,10 @@ export const SubjectFormDialog = ({
           <div className="grid gap-2">
             <Label>Assign to Classes</Label>
             <Select
-              value={formData.selectedClasses.join(",")}
+              value={formData.classes.join(",")}
               onValueChange={(value) => setFormData({ 
                 ...formData, 
-                selectedClasses: value ? value.split(",") : [] 
+                classes: value ? value.split(",") : [] 
               })}
             >
               <SelectTrigger>
