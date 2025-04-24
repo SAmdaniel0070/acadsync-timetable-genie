@@ -44,7 +44,7 @@ const Subjects = () => {
     fetchData();
   }, [fetchData]);
 
-  const handleSubmit = async (data: Partial<Subject>) => {
+  const handleSubmit = async (data: Omit<Subject, "id">) => {
     try {
       if (currentSubject) {
         const updatedSubject = await DataService.updateSubject({
