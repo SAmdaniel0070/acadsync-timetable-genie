@@ -70,10 +70,10 @@ export const TimetableEditDialog: React.FC<TimetableEditDialogProps> = ({
         setSelectedClass(lesson.classId);
         setSelectedTeacher(lesson.teacherId);
         setSelectedSubject(lesson.subjectId);
-        setSelectedBatch(lesson.batchId || null);
+        setSelectedBatch(lesson.batchId || "no-batch");
         setSelectedDay(lesson.day);
         setSelectedTimeSlot(lesson.timeSlotId);
-        setSelectedClassroom(lesson.classroomId || null);
+        setSelectedClassroom(lesson.classroomId || "no-classroom");
 
         // Fetch batches for the selected class
         const fetchBatches = async () => {
@@ -90,10 +90,10 @@ export const TimetableEditDialog: React.FC<TimetableEditDialogProps> = ({
         setSelectedClass(null);
         setSelectedTeacher(null);
         setSelectedSubject(null);
-        setSelectedBatch(null);
+        setSelectedBatch("no-batch");
         setSelectedDay(day);
         setSelectedTimeSlot(timeSlotId);
-        setSelectedClassroom(null);
+        setSelectedClassroom("no-classroom");
         setBatches([]);
       }
     }
@@ -133,8 +133,8 @@ export const TimetableEditDialog: React.FC<TimetableEditDialogProps> = ({
           subjectId: selectedSubject,
           day: selectedDay,
           timeSlotId: selectedTimeSlot,
-          batchId: selectedBatch || undefined,
-          classroomId: selectedClassroom || undefined,
+          batchId: selectedBatch === "no-batch" ? undefined : selectedBatch,
+          classroomId: selectedClassroom === "no-classroom" ? undefined : selectedClassroom,
         };
         
         await onSave(updatedLesson);
@@ -145,8 +145,8 @@ export const TimetableEditDialog: React.FC<TimetableEditDialogProps> = ({
           subjectId: selectedSubject,
           day: selectedDay,
           timeSlotId: selectedTimeSlot,
-          batchId: selectedBatch || undefined,
-          classroomId: selectedClassroom || undefined,
+          batchId: selectedBatch === "no-batch" ? undefined : selectedBatch,
+          classroomId: selectedClassroom === "no-classroom" ? undefined : selectedClassroom,
         };
         
         await onAdd(newLesson);
@@ -177,7 +177,7 @@ export const TimetableEditDialog: React.FC<TimetableEditDialogProps> = ({
 
   const handleClassChange = (value: string) => {
     setSelectedClass(value);
-    setSelectedBatch(null); // Reset batch when class changes
+    setSelectedBatch("no-batch"); // Reset batch when class changes
   };
 
   // Filter teachers based on selected subject
