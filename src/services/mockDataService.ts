@@ -1,3 +1,4 @@
+
 import {
   Timetable,
   Class,
@@ -103,105 +104,173 @@ const mockBatches: Batch[] = [
   { id: "3", name: "Batch C", classId: "2" },
 ];
 
+// Helper function to generate random ID
+const generateId = () => Math.random().toString(36).substring(2, 9);
+
 // Mock data service methods
 export const DataService = {
+  // Fetch timetable data
   getTimetable: async (): Promise<Timetable> => {
     return new Promise((resolve) => {
       setTimeout(() => {
-        resolve(mockTimetable);
+        resolve({...mockTimetable});
       }, 500);
     });
   },
 
+  // Fetch classes
   getClasses: async (): Promise<Class[]> => {
     return new Promise((resolve) => {
       setTimeout(() => {
-        resolve(mockClasses);
+        resolve([...mockClasses]);
       }, 500);
     });
   },
 
+  // Fetch teachers
   getTeachers: async (): Promise<Teacher[]> => {
     return new Promise((resolve) => {
       setTimeout(() => {
-        resolve(mockTeachers);
+        resolve([...mockTeachers]);
       }, 500);
     });
   },
 
+  // Fetch subjects
   getSubjects: async (): Promise<Subject[]> => {
     return new Promise((resolve) => {
       setTimeout(() => {
-        resolve(mockSubjects);
+        resolve([...mockSubjects]);
       }, 500);
     });
   },
 
+  // Fetch time slots
   getTimeSlots: async (): Promise<TimeSlot[]> => {
     return new Promise((resolve) => {
       setTimeout(() => {
-        resolve(mockTimeSlots);
+        resolve([...mockTimeSlots]);
       }, 500);
     });
   },
 
+  // Fetch classrooms
   getClassrooms: async (): Promise<Classroom[]> => {
     return new Promise((resolve) => {
       setTimeout(() => {
-        resolve(mockClassrooms);
+        resolve([...mockClassrooms]);
       }, 500);
     });
   },
 
+  // Fetch batches by class ID
   getBatchesByClass: async (classId: string): Promise<Batch[]> => {
     return new Promise((resolve) => {
       setTimeout(() => {
-        const batches = mockBatches.filter((batch) => batch.classId === classId);
-        resolve(batches);
+        const filteredBatches = mockBatches.filter((batch) => batch.classId === classId);
+        resolve([...filteredBatches]);
       }, 300);
     });
   },
 
+  // Generate new timetable
   generateTimetable: async (): Promise<Timetable> => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          id: "2",
-          name: "Generated Timetable",
-          academicYear: "2024-2025",
-          lessons: [],
-        });
+    const timetableGenerator = await import("../../utils/timetableGenerator");
+    
+    return new Promise(async (resolve) => {
+      setTimeout(async () => {
+        try {
+          // Get all necessary data for timetable generation
+          const classes = mockClasses;
+          const subjects = mockSubjects;
+          const teachers = mockTeachers;
+          const timeSlots = mockTimeSlots;
+          const classrooms = mockClassrooms;
+          
+          // Generate lessons using the algorithm
+          const generatedLessons = await timetableGenerator.generateTimetable({
+            classes,
+            subjects, 
+            teachers,
+            timeSlots,
+            classrooms,
+            workingDays: [0, 1, 2, 3, 4] // Monday to Friday
+          });
+          
+          // Create lesson objects with IDs
+          const lessonsWithIds = generatedLessons.map(lesson => ({
+            ...lesson,
+            id: generateId()
+          }));
+          
+          // Update the mock timetable
+          mockTimetable.lessons = lessonsWithIds;
+          mockTimetable.id = generateId();
+          
+          console.log("Generated new timetable with", lessonsWithIds.length, "lessons");
+          
+          resolve({...mockTimetable});
+        } catch (error) {
+          console.error("Error generating timetable:", error);
+          resolve({
+            id: generateId(),
+            name: "Generated Timetable",
+            academicYear: "2024-2025",
+            lessons: []
+          });
+        }
       }, 1000);
     });
   },
 
+  // Update an existing lesson
   updateLesson: async (lesson: Lesson): Promise<void> => {
     return new Promise((resolve) => {
       setTimeout(() => {
-        console.log("Lesson updated:", lesson);
+        const index = mockTimetable.lessons.findIndex(l => l.id === lesson.id);
+        if (index !== -1) {
+          mockTimetable.lessons[index] = lesson;
+          console.log("Lesson updated:", lesson);
+        } else {
+          console.warn("Lesson not found for update:", lesson.id);
+        }
         resolve();
       }, 300);
     });
   },
 
+  // Delete a lesson
   deleteLesson: async (id: string): Promise<void> => {
     return new Promise((resolve) => {
       setTimeout(() => {
-        console.log("Lesson deleted:", id);
+        const index = mockTimetable.lessons.findIndex(l => l.id === id);
+        if (index !== -1) {
+          mockTimetable.lessons.splice(index, 1);
+          console.log("Lesson deleted:", id);
+        } else {
+          console.warn("Lesson not found for deletion:", id);
+        }
         resolve();
       }, 300);
     });
   },
 
+  // Add a new lesson
   addLesson: async (lesson: Omit<Lesson, "id">): Promise<void> => {
     return new Promise((resolve) => {
       setTimeout(() => {
-        console.log("Lesson added:", lesson);
+        const newLesson = {
+          ...lesson,
+          id: generateId()
+        };
+        mockTimetable.lessons.push(newLesson);
+        console.log("Lesson added:", newLesson);
         resolve();
       }, 300);
     });
   },
 
+  // Get a subject by ID
   getSubjectById: async (id: string): Promise<Subject | undefined> => {
     return new Promise((resolve) => {
       setTimeout(() => {
@@ -211,10 +280,11 @@ export const DataService = {
     });
   },
 
+  // Add a new class
   addClass: async (newClass: Omit<Class, "id">): Promise<Class> => {
     return new Promise((resolve) => {
       setTimeout(() => {
-        const id = Math.random().toString(36).substring(7);
+        const id = generateId();
         const createdClass: Class = { ...newClass, id };
         mockClasses.push(createdClass);
         resolve(createdClass);
@@ -222,6 +292,7 @@ export const DataService = {
     });
   },
 
+  // Update an existing class
   updateClass: async (updatedClass: Class): Promise<Class> => {
     return new Promise((resolve, reject) => {
       setTimeout(() => {
@@ -236,6 +307,7 @@ export const DataService = {
     });
   },
 
+  // Delete a class
   deleteClass: async (id: string): Promise<void> => {
     return new Promise((resolve) => {
       setTimeout(() => {
@@ -248,10 +320,11 @@ export const DataService = {
     });
   },
 
+  // Add a new subject
   addSubject: async (newSubject: Omit<Subject, "id">): Promise<Subject> => {
     return new Promise((resolve) => {
       setTimeout(() => {
-        const id = Math.random().toString(36).substring(7);
+        const id = generateId();
         const subjectWithId: Subject = { 
           ...newSubject, 
           id 
@@ -262,6 +335,7 @@ export const DataService = {
     });
   },
   
+  // Update an existing subject
   updateSubject: async (updatedSubject: Subject): Promise<Subject> => {
     return new Promise((resolve) => {
       setTimeout(() => {
@@ -274,6 +348,7 @@ export const DataService = {
     });
   },
 
+  // Delete a subject
   deleteSubject: async (id: string): Promise<void> => {
     return new Promise((resolve) => {
       setTimeout(() => {
@@ -286,18 +361,20 @@ export const DataService = {
     });
   },
   
+  // Update the entire timetable
   updateTimetable: async (timetable: Timetable): Promise<Timetable> => {
     return new Promise((resolve) => {
       setTimeout(() => {
-        // In a real application, this would make an API call
         console.log('Updating timetable:', timetable);
-        // For mock service, we'll just update our local copy
-        Object.assign(mockTimetable, timetable);
+        // Deep clone the timetable to avoid reference issues
+        const updatedTimetable = JSON.parse(JSON.stringify(timetable));
+        Object.assign(mockTimetable, updatedTimetable);
         resolve({...mockTimetable});
       }, 500);
     });
   },
 
+  // Update a time slot
   updateTimeSlot: async (updatedTimeSlot: TimeSlot): Promise<TimeSlot> => {
     return new Promise((resolve, reject) => {
       setTimeout(() => {
@@ -312,10 +389,11 @@ export const DataService = {
     });
   },
   
+  // Add a new time slot
   addTimeSlot: async (newTimeSlot: Omit<TimeSlot, "id">): Promise<TimeSlot> => {
     return new Promise((resolve) => {
       setTimeout(() => {
-        const id = Math.random().toString(36).substring(7);
+        const id = generateId();
         const timeSlotWithId: TimeSlot = { ...newTimeSlot, id };
         mockTimeSlots.push(timeSlotWithId);
         resolve(timeSlotWithId);
@@ -323,6 +401,7 @@ export const DataService = {
     });
   },
   
+  // Delete a time slot
   deleteTimeSlot: async (id: string): Promise<void> => {
     return new Promise((resolve) => {
       setTimeout(() => {

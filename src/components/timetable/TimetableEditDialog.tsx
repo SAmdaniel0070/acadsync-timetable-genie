@@ -2,373 +2,543 @@ import React, { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Class, Teacher, Subject, TimeSlot, Lesson, Classroom } from "@/types";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DataService } from "@/services/mockData";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { 
+  Class, 
+  Teacher, 
+  Subject, 
+  Lesson, 
+  TimeSlot, 
+  Batch, 
+  Classroom 
+} from "@/types";
+import { DataService } from "@/services/mockDataService";
+import { useToast } from "@/components/ui/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface TimetableEditDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  lesson: Lesson | null;
+  isOpen: boolean;
+  onClose: () => void;
   day: number;
-  timeSlotId: string;
+  timeSlot: TimeSlot;
+  lesson?: Lesson;
+  classes: Class[];
   teachers: Teacher[];
   subjects: Subject[];
-  classes: Class[];
-  timeSlots: TimeSlot[];
-  onSave: (lesson: Lesson) => Promise<void>;
-  onDelete: (id: string) => Promise<void>;
-  onAdd: (lesson: Omit<Lesson, "id">) => Promise<void>;
+  onSave: (lesson: Lesson) => void;
+  onDelete?: (id: string) => void;
+  onAdd: (lesson: Omit<Lesson, "id">) => void;
 }
 
 export const TimetableEditDialog: React.FC<TimetableEditDialogProps> = ({
-  open,
-  onOpenChange,
-  lesson,
+  isOpen,
+  onClose,
   day,
-  timeSlotId,
+  timeSlot,
+  lesson,
+  classes,
   teachers,
   subjects,
-  classes,
-  timeSlots,
   onSave,
   onDelete,
-  onAdd,
+  onAdd
 }) => {
-  const [selectedClass, setSelectedClass] = useState<string | null>(null);
-  const [selectedTeacher, setSelectedTeacher] = useState<string | null>(null);
-  const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
-  const [selectedBatch, setSelectedBatch] = useState<string | null>(null);
-  const [selectedDay, setSelectedDay] = useState<number>(0);
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null);
-  const [batches, setBatches] = useState<any[]>([]);
+  // State variables
+  const [selectedClassId, setSelectedClassId] = useState<string>("");
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string>("");
+  const [selectedTeacherId, setSelectedTeacherId] = useState<string>("");
+  const [selectedClassroomId, setSelectedClassroomId] = useState<string>("no-classroom");
+  const [selectedBatchId, setSelectedBatchId] = useState<string>("no-batch");
+  const [batches, setBatches] = useState<Batch[]>([]);
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
-  const [selectedClassroom, setSelectedClassroom] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const isEditMode = !!lesson;
+  const [eligibleTeachers, setEligibleTeachers] = useState<Teacher[]>([]);
+  const [eligibleSubjects, setEligibleSubjects] = useState<Subject[]>([]);
+  const [eligibleClassrooms, setEligibleClassrooms] = useState<Classroom[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<"edit" | "add">("edit");
 
-  const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const nonBreakTimeSlots = timeSlots.filter(slot => !slot.isBreak);
+  const { toast } = useToast();
 
+  // Initialize component state
   useEffect(() => {
-    const fetchClassrooms = async () => {
-      try {
-        const data = await DataService.getClassrooms();
-        setClassrooms(data);
-      } catch (error) {
-        console.error("Error fetching classrooms:", error);
-      }
-    };
-
-    fetchClassrooms();
-  }, []);
-
-  useEffect(() => {
-    if (open) {
-      if (isEditMode && lesson) {
-        setSelectedClass(lesson.classId);
-        setSelectedTeacher(lesson.teacherId);
-        setSelectedSubject(lesson.subjectId);
-        setSelectedBatch(lesson.batchId || "no-batch");
-        setSelectedDay(lesson.day);
-        setSelectedTimeSlot(lesson.timeSlotId);
-        setSelectedClassroom(lesson.classroomId || "no-classroom");
-
-        // Fetch batches for the selected class
-        const fetchBatches = async () => {
-          try {
-            const data = await DataService.getBatchesByClass(lesson.classId);
-            setBatches(data);
-          } catch (error) {
-            console.error("Error fetching batches:", error);
-          }
-        };
+    if (isOpen) {
+      if (lesson) {
+        // Edit mode - initialize with lesson data
+        setSelectedClassId(lesson.classId);
+        setSelectedSubjectId(lesson.subjectId);
+        setSelectedTeacherId(lesson.teacherId);
+        setSelectedClassroomId(lesson.classroomId || "no-classroom");
+        setSelectedBatchId(lesson.batchId || "no-batch");
+        setActiveTab("edit");
         
-        fetchBatches();
+        // Load batches for the selected class
+        loadBatchesForClass(lesson.classId);
+        
+        // Load all classrooms
+        loadClassrooms();
       } else {
-        setSelectedClass(null);
-        setSelectedTeacher(null);
-        setSelectedSubject(null);
-        setSelectedBatch("no-batch");
-        setSelectedDay(day);
-        setSelectedTimeSlot(timeSlotId);
-        setSelectedClassroom("no-classroom");
-        setBatches([]);
+        // Add mode - reset form
+        setSelectedClassId("");
+        setSelectedSubjectId("");
+        setSelectedTeacherId("");
+        setSelectedClassroomId("no-classroom");
+        setSelectedBatchId("no-batch");
+        setActiveTab("add");
       }
     }
-  }, [open, lesson, isEditMode, day, timeSlotId]);
+  }, [isOpen, lesson]);
 
-  useEffect(() => {
-    if (selectedClass) {
-      const fetchBatches = async () => {
-        try {
-          const data = await DataService.getBatchesByClass(selectedClass);
-          setBatches(data);
-        } catch (error) {
-          console.error("Error fetching batches:", error);
-        }
-      };
-      
-      fetchBatches();
-    } else {
+  // Load batches when class changes
+  const loadBatchesForClass = async (classId: string) => {
+    if (!classId) {
       setBatches([]);
-    }
-  }, [selectedClass]);
-
-  const handleSave = async () => {
-    if (!selectedClass || !selectedTeacher || !selectedSubject || !selectedDay || !selectedTimeSlot) {
-      alert("Please fill in all required fields");
       return;
     }
-
-    setIsSubmitting(true);
-
+    
     try {
-      if (isEditMode && lesson) {
-        const updatedLesson: Lesson = {
-          ...lesson,
-          classId: selectedClass,
-          teacherId: selectedTeacher,
-          subjectId: selectedSubject,
-          day: selectedDay,
-          timeSlotId: selectedTimeSlot,
-          batchId: selectedBatch === "no-batch" ? undefined : selectedBatch,
-          classroomId: selectedClassroom === "no-classroom" ? undefined : selectedClassroom,
-        };
-        
-        await onSave(updatedLesson);
-      } else {
-        const newLesson = {
-          classId: selectedClass,
-          teacherId: selectedTeacher,
-          subjectId: selectedSubject,
-          day: selectedDay,
-          timeSlotId: selectedTimeSlot,
-          batchId: selectedBatch === "no-batch" ? undefined : selectedBatch,
-          classroomId: selectedClassroom === "no-classroom" ? undefined : selectedClassroom,
-        };
-        
-        await onAdd(newLesson);
+      const batchData = await DataService.getBatchesByClass(classId);
+      setBatches(batchData);
+    } catch (error) {
+      console.error("Error loading batches:", error);
+      setBatches([]);
+    }
+  };
+
+  // Load all classrooms
+  const loadClassrooms = async () => {
+    try {
+      const classroomData = await DataService.getClassrooms();
+      setClassrooms(classroomData);
+    } catch (error) {
+      console.error("Error loading classrooms:", error);
+      setClassrooms([]);
+    }
+  };
+
+  // Update eligible teachers when subject changes
+  useEffect(() => {
+    if (selectedSubjectId) {
+      const eligibleTeacherList = teachers.filter((teacher) =>
+        teacher.subjects?.includes(selectedSubjectId)
+      );
+      setEligibleTeachers(eligibleTeacherList);
+      
+      // Auto-select teacher if there's only one eligible
+      if (eligibleTeacherList.length === 1 && !selectedTeacherId) {
+        setSelectedTeacherId(eligibleTeacherList[0].id);
+      } else if (eligibleTeacherList.length === 0) {
+        setSelectedTeacherId("");
+      } else if (selectedTeacherId && !eligibleTeacherList.some(t => t.id === selectedTeacherId)) {
+        setSelectedTeacherId("");
+      }
+    } else {
+      setEligibleTeachers([]);
+      setSelectedTeacherId("");
+    }
+  }, [selectedSubjectId, teachers, selectedTeacherId]);
+
+  // Update eligible subjects when class changes
+  useEffect(() => {
+    if (selectedClassId) {
+      const eligibleSubjectList = subjects.filter((subject) =>
+        subject.classes?.includes(selectedClassId)
+      );
+      setEligibleSubjects(eligibleSubjectList);
+      
+      // Reset subject selection if current selection is not eligible
+      if (selectedSubjectId && !eligibleSubjectList.some(s => s.id === selectedSubjectId)) {
+        setSelectedSubjectId("");
       }
       
-      onOpenChange(false);
-    } catch (error) {
-      console.error("Error saving lesson:", error);
-    } finally {
-      setIsSubmitting(false);
+      // Load batches for the selected class
+      loadBatchesForClass(selectedClassId);
+    } else {
+      setEligibleSubjects([]);
+      setSelectedSubjectId("");
+      setBatches([]);
     }
-  };
+  }, [selectedClassId, subjects, selectedSubjectId]);
 
-  const handleDelete = async () => {
-    if (!isEditMode || !lesson) return;
+  // Update eligible classrooms when subject changes
+  useEffect(() => {
+    if (selectedSubjectId && classrooms.length > 0) {
+      const subject = subjects.find(s => s.id === selectedSubjectId);
+      const needsLab = subject?.isLab || false;
+      
+      const eligibleClassroomList = classrooms.filter(classroom => {
+        // If subject needs a lab, only show lab classrooms
+        // Otherwise, show all classrooms
+        return needsLab ? classroom.isLab : true;
+      });
+      
+      setEligibleClassrooms(eligibleClassroomList);
+      
+      // Reset classroom selection if current selection is not eligible
+      if (selectedClassroomId !== "no-classroom" && 
+          !eligibleClassroomList.some(c => c.id === selectedClassroomId)) {
+        setSelectedClassroomId("no-classroom");
+      }
+    } else {
+      setEligibleClassrooms(classrooms);
+    }
+  }, [selectedSubjectId, classrooms, subjects, selectedClassroomId]);
+
+  // Handle saving the lesson
+  const handleSave = async () => {
+    if (!selectedClassId || !selectedSubjectId || !selectedTeacherId) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields (class, subject, and teacher).",
+        variant: "destructive",
+      });
+      return;
+    }
     
-    setIsSubmitting(true);
+    setIsLoading(true);
     
     try {
-      await onDelete(lesson.id);
-      onOpenChange(false);
+      if (lesson) {
+        // Update existing lesson
+        const updatedLesson: Lesson = {
+          ...lesson,
+          classId: selectedClassId,
+          subjectId: selectedSubjectId,
+          teacherId: selectedTeacherId,
+          classroomId: selectedClassroomId === "no-classroom" ? undefined : selectedClassroomId,
+          batchId: selectedBatchId === "no-batch" ? undefined : selectedBatchId,
+        };
+        
+        onSave(updatedLesson);
+      } else {
+        // Create new lesson
+        const newLesson: Omit<Lesson, "id"> = {
+          day,
+          timeSlotId: timeSlot.id,
+          classId: selectedClassId,
+          subjectId: selectedSubjectId,
+          teacherId: selectedTeacherId,
+          classroomId: selectedClassroomId === "no-classroom" ? undefined : selectedClassroomId,
+          batchId: selectedBatchId === "no-batch" ? undefined : selectedBatchId,
+        };
+        
+        onAdd(newLesson);
+      }
+      
+      onClose();
     } catch (error) {
-      console.error("Error deleting lesson:", error);
+      console.error("Error saving lesson:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save the lesson. Please try again.",
+        variant: "destructive",
+      });
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
   };
 
+  // Handle class selection change
   const handleClassChange = (value: string) => {
-    setSelectedClass(value);
-    setSelectedBatch("no-batch"); // Reset batch when class changes
+    setSelectedClassId(value);
+    setSelectedSubjectId("");
+    setSelectedBatchId("no-batch");
   };
 
-  // Filter teachers based on selected subject
-  const eligibleTeachers = selectedSubject 
-    ? teachers.filter(teacher => teacher.subjects.includes(selectedSubject))
-    : teachers;
-
-  // Filter classrooms based on whether the subject is a lab subject or not
-  const selectedSubjectObj = subjects.find(s => s.id === selectedSubject);
-  const isLabSubject = selectedSubjectObj && 
-    (selectedSubjectObj.name.toLowerCase().includes('lab') || 
-    selectedSubjectObj.code.toLowerCase().includes('lab'));
-  
-  const eligibleClassrooms = classrooms.filter(c => isLabSubject ? c.isLab : true);
+  // Handle subject selection change
+  const handleSubjectChange = (value: string) => {
+    setSelectedSubjectId(value);
+    setSelectedTeacherId("");
+  };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
-            {isEditMode ? "Edit Lesson" : "Add Lesson"}
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {lesson ? "Edit Lesson" : "Add Lesson"}
+            </DialogTitle>
+          </DialogHeader>
 
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="day" className="text-right">
-              Day
-            </Label>
-            <Select value={String(selectedDay)} onValueChange={(value) => setSelectedDay(Number(value))}>
-              <SelectTrigger id="day" className="col-span-3">
-                <SelectValue placeholder="Select day" />
-              </SelectTrigger>
-              <SelectContent>
-                {daysOfWeek.map((day, index) => (
-                  <SelectItem key={day} value={String(index)}>
-                    {day}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {lesson ? (
+            // Edit mode for existing lesson
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label htmlFor="class">Class</Label>
+                <Select
+                  value={selectedClassId}
+                  onValueChange={handleClassChange}
+                  disabled={isLoading}
+                >
+                  <SelectTrigger id="class">
+                    <SelectValue placeholder="Select class" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {classes.map((cls) => (
+                      <SelectItem key={cls.id} value={cls.id}>
+                        {cls.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="timeSlot" className="text-right">
-              Time
-            </Label>
-            <Select value={selectedTimeSlot || ''} onValueChange={setSelectedTimeSlot}>
-              <SelectTrigger id="timeSlot" className="col-span-3">
-                <SelectValue placeholder="Select time slot" />
-              </SelectTrigger>
-              <SelectContent>
-                {nonBreakTimeSlots.map((slot) => (
-                  <SelectItem key={slot.id} value={slot.id}>
-                    {slot.startTime} - {slot.endTime}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="subject">Subject</Label>
+                <Select
+                  value={selectedSubjectId}
+                  onValueChange={handleSubjectChange}
+                  disabled={isLoading || !selectedClassId}
+                >
+                  <SelectTrigger id="subject">
+                    <SelectValue placeholder="Select subject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {eligibleSubjects.map((subject) => (
+                      <SelectItem key={subject.id} value={subject.id}>
+                        {subject.name} ({subject.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="class" className="text-right">
-              Class
-            </Label>
-            <Select value={selectedClass || ''} onValueChange={handleClassChange}>
-              <SelectTrigger id="class" className="col-span-3">
-                <SelectValue placeholder="Select class" />
-              </SelectTrigger>
-              <SelectContent>
-                {classes.map((cls) => (
-                  <SelectItem key={cls.id} value={cls.id}>
-                    {cls.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="teacher">Teacher</Label>
+                <Select
+                  value={selectedTeacherId}
+                  onValueChange={setSelectedTeacherId}
+                  disabled={isLoading || !selectedSubjectId}
+                >
+                  <SelectTrigger id="teacher">
+                    <SelectValue placeholder="Select teacher" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {eligibleTeachers.map((teacher) => (
+                      <SelectItem key={teacher.id} value={teacher.id}>
+                        {teacher.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          {batches.length > 0 && (
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="batch" className="text-right">
-                Batch
-              </Label>
-              <Select value={selectedBatch || ''} onValueChange={setSelectedBatch}>
-                <SelectTrigger id="batch" className="col-span-3">
-                  <SelectValue placeholder="Select batch (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="no-batch">No Batch (Entire Class)</SelectItem>
-                  {batches.map((batch) => (
-                    <SelectItem key={batch.id} value={batch.id}>
-                      {batch.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {batches.length > 0 && (
+                <div className="space-y-2">
+                  <Label htmlFor="batch">Batch (Optional)</Label>
+                  <Select
+                    value={selectedBatchId}
+                    onValueChange={setSelectedBatchId}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger id="batch">
+                      <SelectValue placeholder="Select batch (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="no-batch">No Batch (Entire Class)</SelectItem>
+                      {batches.map((batch) => (
+                        <SelectItem key={batch.id} value={batch.id}>
+                          {batch.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="classroom">Classroom (Optional)</Label>
+                <Select
+                  value={selectedClassroomId}
+                  onValueChange={setSelectedClassroomId}
+                  disabled={isLoading}
+                >
+                  <SelectTrigger id="classroom">
+                    <SelectValue placeholder="Select classroom" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="no-classroom">No specific classroom</SelectItem>
+                    {eligibleClassrooms.map((classroom) => (
+                      <SelectItem key={classroom.id} value={classroom.id}>
+                        {classroom.name} ({classroom.isLab ? 'Lab' : 'Room'})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+          ) : (
+            // Add mode for new lesson
+            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "edit" | "add")}>
+              <TabsList className="w-full mb-4">
+                <TabsTrigger value="add" className="flex-1">
+                  Add Lesson
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="add" className="space-y-4 py-2">
+                <div className="space-y-2">
+                  <Label htmlFor="add-class">Class</Label>
+                  <Select
+                    value={selectedClassId}
+                    onValueChange={handleClassChange}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger id="add-class">
+                      <SelectValue placeholder="Select class" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {classes.map((cls) => (
+                        <SelectItem key={cls.id} value={cls.id}>
+                          {cls.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="add-subject">Subject</Label>
+                  <Select
+                    value={selectedSubjectId}
+                    onValueChange={handleSubjectChange}
+                    disabled={isLoading || !selectedClassId}
+                  >
+                    <SelectTrigger id="add-subject">
+                      <SelectValue placeholder="Select subject" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {eligibleSubjects.map((subject) => (
+                        <SelectItem key={subject.id} value={subject.id}>
+                          {subject.name} ({subject.code})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="add-teacher">Teacher</Label>
+                  <Select
+                    value={selectedTeacherId}
+                    onValueChange={setSelectedTeacherId}
+                    disabled={isLoading || !selectedSubjectId}
+                  >
+                    <SelectTrigger id="add-teacher">
+                      <SelectValue placeholder="Select teacher" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {eligibleTeachers.map((teacher) => (
+                        <SelectItem key={teacher.id} value={teacher.id}>
+                          {teacher.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {batches.length > 0 && (
+                  <div className="space-y-2">
+                    <Label htmlFor="add-batch">Batch (Optional)</Label>
+                    <Select
+                      value={selectedBatchId}
+                      onValueChange={setSelectedBatchId}
+                      disabled={isLoading}
+                    >
+                      <SelectTrigger id="add-batch">
+                        <SelectValue placeholder="Select batch (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="no-batch">No Batch (Entire Class)</SelectItem>
+                        {batches.map((batch) => (
+                          <SelectItem key={batch.id} value={batch.id}>
+                            {batch.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label htmlFor="add-classroom">Classroom (Optional)</Label>
+                  <Select
+                    value={selectedClassroomId}
+                    onValueChange={setSelectedClassroomId}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger id="add-classroom">
+                      <SelectValue placeholder="Select classroom" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="no-classroom">No specific classroom</SelectItem>
+                      {eligibleClassrooms.map((classroom) => (
+                        <SelectItem key={classroom.id} value={classroom.id}>
+                          {classroom.name} ({classroom.isLab ? 'Lab' : 'Room'})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </TabsContent>
+            </Tabs>
           )}
 
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="subject" className="text-right">
-              Subject
-            </Label>
-            <Select value={selectedSubject || ''} onValueChange={setSelectedSubject}>
-              <SelectTrigger id="subject" className="col-span-3">
-                <SelectValue placeholder="Select subject" />
-              </SelectTrigger>
-              <SelectContent>
-                {subjects.map((subject) => (
-                  <SelectItem key={subject.id} value={subject.id}>
-                    {subject.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <DialogFooter className="flex-col space-y-2 sm:flex-row sm:justify-between sm:space-x-2 sm:space-y-0">
+            {lesson && onDelete && (
+              <Button
+                variant="destructive"
+                onClick={() => setIsDeleteDialogOpen(true)}
+                disabled={isLoading}
+              >
+                Delete Lesson
+              </Button>
+            )}
+            <div className="flex space-x-2">
+              <Button variant="outline" onClick={onClose} disabled={isLoading}>
+                Cancel
+              </Button>
+              <Button onClick={handleSave} disabled={isLoading}>
+                {isLoading ? "Saving..." : lesson ? "Update" : "Add"}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="teacher" className="text-right">
-              Teacher
-            </Label>
-            <Select 
-              value={selectedTeacher || ''} 
-              onValueChange={setSelectedTeacher}
-              disabled={eligibleTeachers.length === 0}
-            >
-              <SelectTrigger id="teacher" className="col-span-3">
-                <SelectValue placeholder={
-                  selectedSubject && eligibleTeachers.length === 0 
-                    ? "No teachers for this subject" 
-                    : "Select teacher"
-                } />
-              </SelectTrigger>
-              <SelectContent>
-                {eligibleTeachers.map((teacher) => (
-                  <SelectItem key={teacher.id} value={teacher.id}>
-                    {teacher.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="classroom" className="text-right">
-              Classroom
-            </Label>
-            <Select value={selectedClassroom || ''} onValueChange={setSelectedClassroom}>
-              <SelectTrigger id="classroom" className="col-span-3">
-                <SelectValue placeholder="Select classroom" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="no-classroom">No specific classroom</SelectItem>
-                {eligibleClassrooms.map((classroom) => (
-                  <SelectItem key={classroom.id} value={classroom.id}>
-                    {classroom.name} ({classroom.isLab ? 'Lab' : 'Room'})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <DialogFooter>
-          {isEditMode && (
-            <Button 
-              type="button" 
-              variant="destructive" 
-              onClick={handleDelete}
-              disabled={isSubmitting}
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Lesson</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this lesson? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (lesson && onDelete) {
+                  onDelete(lesson.id);
+                }
+                setIsDeleteDialogOpen(false);
+                onClose();
+              }}
+              className="bg-red-500 hover:bg-red-600"
             >
               Delete
-            </Button>
-          )}
-          <Button 
-            type="button" 
-            variant="outline" 
-            onClick={() => onOpenChange(false)}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </Button>
-          <Button 
-            type="button" 
-            onClick={handleSave}
-            disabled={isSubmitting}
-          >
-            Save
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
