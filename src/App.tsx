@@ -9,6 +9,7 @@ import Layout from "./components/layout/Layout";
 import Dashboard from "./pages/Dashboard";
 import Classes from "./pages/Classes";
 import Classrooms from "./pages/Classrooms";
+import ClassroomsPage from "./pages/ClassroomsPage";
 import Timetables from "./pages/Timetables";
 import Teachers from "./pages/Teachers";
 import Subjects from "./pages/Subjects";
