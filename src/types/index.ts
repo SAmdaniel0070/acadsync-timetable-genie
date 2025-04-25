@@ -1,4 +1,3 @@
-
 // Class represents a group of students
 export interface Class {
   id: string;
@@ -47,6 +46,8 @@ export interface Classroom {
   name: string; // e.g., "Room 101"
   capacity: number; // number of students the room can accommodate
   isLab: boolean; // true if this room is a laboratory
+  building?: string; // optional building name
+  floor?: number; // optional floor number
 }
 
 // Lesson represents a single class in the timetable
