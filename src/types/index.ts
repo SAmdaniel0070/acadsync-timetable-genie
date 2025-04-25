@@ -43,7 +43,7 @@ export interface TimeSlot {
 // Classroom represents a physical room where lessons can be held
 export interface Classroom {
   id: string;
-  name: string; // e.g., "Room 101"
+  name: string;
   capacity: number; // number of students the room can accommodate
   isLab: boolean; // true if this room is a laboratory
   building?: string; // optional building name
