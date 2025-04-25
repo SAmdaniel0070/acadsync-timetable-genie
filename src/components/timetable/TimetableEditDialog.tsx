@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -24,28 +25,30 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface TimetableEditDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  day: number;
-  timeSlot: TimeSlot;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   lesson?: Lesson;
+  day: number;
+  timeSlotId: string;
   classes: Class[];
   teachers: Teacher[];
   subjects: Subject[];
+  timeSlots: TimeSlot[];
   onSave: (lesson: Lesson) => void;
   onDelete?: (id: string) => void;
   onAdd: (lesson: Omit<Lesson, "id">) => void;
 }
 
 export const TimetableEditDialog: React.FC<TimetableEditDialogProps> = ({
-  isOpen,
-  onClose,
-  day,
-  timeSlot,
+  open,
+  onOpenChange,
   lesson,
+  day,
+  timeSlotId,
   classes,
   teachers,
   subjects,
+  timeSlots,
   onSave,
   onDelete,
   onAdd
@@ -69,7 +72,7 @@ export const TimetableEditDialog: React.FC<TimetableEditDialogProps> = ({
 
   // Initialize component state
   useEffect(() => {
-    if (isOpen) {
+    if (open) {
       if (lesson) {
         // Edit mode - initialize with lesson data
         setSelectedClassId(lesson.classId);
@@ -94,7 +97,7 @@ export const TimetableEditDialog: React.FC<TimetableEditDialogProps> = ({
         setActiveTab("add");
       }
     }
-  }, [isOpen, lesson]);
+  }, [open, lesson]);
 
   // Load batches when class changes
   const loadBatchesForClass = async (classId: string) => {
@@ -221,7 +224,7 @@ export const TimetableEditDialog: React.FC<TimetableEditDialogProps> = ({
         // Create new lesson
         const newLesson: Omit<Lesson, "id"> = {
           day,
-          timeSlotId: timeSlot.id,
+          timeSlotId,
           classId: selectedClassId,
           subjectId: selectedSubjectId,
           teacherId: selectedTeacherId,
@@ -232,7 +235,7 @@ export const TimetableEditDialog: React.FC<TimetableEditDialogProps> = ({
         onAdd(newLesson);
       }
       
-      onClose();
+      onOpenChange(false);
     } catch (error) {
       console.error("Error saving lesson:", error);
       toast({
@@ -260,7 +263,7 @@ export const TimetableEditDialog: React.FC<TimetableEditDialogProps> = ({
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
@@ -502,7 +505,7 @@ export const TimetableEditDialog: React.FC<TimetableEditDialogProps> = ({
               </Button>
             )}
             <div className="flex space-x-2">
-              <Button variant="outline" onClick={onClose} disabled={isLoading}>
+              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
                 Cancel
               </Button>
               <Button onClick={handleSave} disabled={isLoading}>
@@ -530,7 +533,7 @@ export const TimetableEditDialog: React.FC<TimetableEditDialogProps> = ({
                   onDelete(lesson.id);
                 }
                 setIsDeleteDialogOpen(false);
-                onClose();
+                onOpenChange(false);
               }}
               className="bg-red-500 hover:bg-red-600"
             >

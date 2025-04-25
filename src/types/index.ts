@@ -29,6 +29,7 @@ export interface Subject {
   code: string; // e.g., "CS101"
   classes?: string[]; // Array of class IDs this subject is assigned to
   periodsPerWeek: number; // Number of periods per week for this subject
+  isLab?: boolean; // Indicates if this subject requires a lab
 }
 
 // TimeSlot represents a period in the day
