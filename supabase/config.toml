@@ -1,1 +1,10 @@
 project_id = "zefputjjkytoacjdmijy"
+
+[functions.generate-timetable]
+verify_jwt = false
+
+[functions.share-timetable]
+verify_jwt = false
+
+[functions.download-timetable]
+verify_jwt = false

@@ -1,6 +1,6 @@
 import React from "react";
 import { PageHeader } from "@/components/ui/page-header";
-import { DataService } from "@/services/mockDataService";
+import { supabase } from "@/integrations/supabase/client";
 import { Timetable, Class, Teacher, Subject, TimeSlot, TimetableView as TimetableViewType, EditMode, Lesson, Classroom } from "@/types";
 import { useToast } from "@/components/ui/use-toast";
 import { TimetableTabs } from "@/components/timetable/TimetableTabs";
