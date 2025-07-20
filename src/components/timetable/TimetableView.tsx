@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { TimetableEditDialog } from "./TimetableEditDialog";
 import { Edit, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DataService } from "@/services/mockData";
+import { TimetableService } from "@/services/timetableService";
 
 interface TimetableViewProps {
   timetable: Timetable;
@@ -49,7 +49,7 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
   React.useEffect(() => {
     const fetchClassrooms = async () => {
       try {
-        const classroomsData = await DataService.getClassrooms();
+        const classroomsData = await TimetableService.getClassrooms();
         setClassrooms(classroomsData);
       } catch (error) {
         console.error("Error fetching classrooms:", error);
