@@ -1,6 +1,6 @@
 import React from "react";
 import { PageHeader } from "@/components/ui/page-header";
-import { supabase } from "@/integrations/supabase/client";
+import { TimetableService } from "@/services/timetableService";
 import { Timetable, Class, Teacher, Subject, TimeSlot, TimetableView as TimetableViewType, EditMode, Lesson, Classroom } from "@/types";
 import { useToast } from "@/components/ui/use-toast";
 import { TimetableTabs } from "@/components/timetable/TimetableTabs";
@@ -28,13 +28,14 @@ const Timetables = () => {
   const fetchData = React.useCallback(async () => {
     try {
       setLoading(true);
+      
       const [timetableData, classesData, teachersData, subjectsData, timeSlotsData, classroomsData] = await Promise.all([
-        DataService.getTimetable(),
-        DataService.getClasses(),
-        DataService.getTeachers(),
-        DataService.getSubjects(),
-        DataService.getTimeSlots(),
-        DataService.getClassrooms(),
+        TimetableService.getTimetable(),
+        TimetableService.getClasses(),
+        TimetableService.getTeachers(),
+        TimetableService.getSubjects(),
+        TimetableService.getTimeSlots(),
+        TimetableService.getClassrooms(),
       ]);
       
       setTimetable(timetableData);
@@ -68,7 +69,7 @@ const Timetables = () => {
   const handleGenerateTimetable = async () => {
     try {
       setLoading(true);
-      const newTimetable = await DataService.generateTimetable();
+      const newTimetable = await TimetableService.generateTimetable();
       setTimetable(newTimetable);
       toast({
         title: "Success",
@@ -109,8 +110,8 @@ const Timetables = () => {
 
   const handleUpdateLesson = async (lesson: Lesson) => {
     try {
-      await DataService.updateLesson(lesson);
-      const updatedTimetable = await DataService.getTimetable();
+      await TimetableService.updateLesson(lesson);
+      const updatedTimetable = await TimetableService.getTimetable();
       setTimetable(updatedTimetable);
       toast({
         title: "Success",
@@ -128,8 +129,8 @@ const Timetables = () => {
 
   const handleDeleteLesson = async (id: string) => {
     try {
-      await DataService.deleteLesson(id);
-      const updatedTimetable = await DataService.getTimetable();
+      await TimetableService.deleteLesson(id);
+      const updatedTimetable = await TimetableService.getTimetable();
       setTimetable(updatedTimetable);
       toast({
         title: "Success",
@@ -147,8 +148,8 @@ const Timetables = () => {
 
   const handleAddLesson = async (lesson: Omit<Lesson, "id">) => {
     try {
-      await DataService.addLesson(lesson);
-      const updatedTimetable = await DataService.getTimetable();
+      await TimetableService.addLesson(lesson);
+      const updatedTimetable = await TimetableService.getTimetable();
       setTimetable(updatedTimetable);
       toast({
         title: "Success",
@@ -174,7 +175,7 @@ const Timetables = () => {
       if (!timetable) return;
 
       // Save the current timetable state to the database
-      await DataService.updateTimetable(timetable);
+      await TimetableService.updateTimetable(timetable);
       
       toast({
         title: "Success",
