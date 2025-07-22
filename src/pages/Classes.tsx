@@ -2,7 +2,8 @@ import React from "react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
-import { DataService } from "@/services/mockData";
+import { TimetableService } from "@/services/timetableService";
+import { supabase } from "@/integrations/supabase/client";
 import { Class, Batch } from "@/types";
 import { Plus, Pencil, Trash2, Users } from "lucide-react";
 import { 
@@ -44,7 +45,7 @@ const Classes = () => {
   const fetchClasses = React.useCallback(async () => {
     try {
       setLoading(true);
-      const data = await DataService.getClasses();
+      const data = await TimetableService.getClasses();
       setClasses(data);
     } catch (error) {
       console.error("Error fetching classes:", error);
@@ -81,10 +82,12 @@ const Classes = () => {
   const handleAddClass = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await DataService.addClass({
-        name: formData.name || "",
-        year_id: formData.year_id || "",
-      });
+      const { error } = await supabase
+        .from('classes')
+        .insert({
+          name: formData.name || "",
+          year_id: formData.year_id || "",
+        });
       toast({
         title: "Success",
         description: "Class added successfully",
@@ -107,11 +110,13 @@ const Classes = () => {
     if (!currentClass) return;
     
     try {
-      await DataService.updateClass({
-        id: currentClass.id,
-        name: formData.name || currentClass.name,
-        year_id: formData.year_id || currentClass.year_id,
-      });
+      const { error } = await supabase
+        .from('classes')
+        .update({
+          name: formData.name || currentClass.name,
+          year_id: formData.year_id || currentClass.year_id,
+        })
+        .eq('id', currentClass.id);
       toast({
         title: "Success",
         description: "Class updated successfully",
@@ -134,7 +139,10 @@ const Classes = () => {
     if (!currentClass) return;
     
     try {
-      await DataService.deleteClass(currentClass.id);
+      const { error } = await supabase
+        .from('classes')
+        .delete()
+        .eq('id', currentClass.id);
       toast({
         title: "Success",
         description: "Class deleted successfully",
@@ -157,17 +165,13 @@ const Classes = () => {
     if (!currentClass) return;
     
     try {
-      await DataService.addBatch({
-        name: batchFormData.name || "",
-        classId: currentClass.id,
-      });
+      // Batch functionality would need to be implemented in Supabase
       toast({
-        title: "Success",
-        description: "Batch added successfully",
+        title: "Info",
+        description: "Batch functionality not yet implemented",
       });
       setIsBatchDialogOpen(false);
       setBatchFormData({ name: "" });
-      fetchClasses();
     } catch (error) {
       console.error("Error adding batch:", error);
       toast({
@@ -180,12 +184,11 @@ const Classes = () => {
 
   const handleDeleteBatch = async (batchId: string) => {
     try {
-      await DataService.deleteBatch(batchId);
+      // Batch functionality would need to be implemented in Supabase
       toast({
-        title: "Success",
-        description: "Batch deleted successfully",
+        title: "Info",
+        description: "Batch functionality not yet implemented",
       });
-      fetchClasses();
     } catch (error) {
       console.error("Error deleting batch:", error);
       toast({
