@@ -212,12 +212,19 @@ export const TimetableEditDialog: React.FC<TimetableEditDialogProps> = ({
       } else {
         // Create new lesson
         const newLesson: Omit<Lesson, "id"> = {
+          timetable_id: "default-timetable", // We'll need to get this properly
+          class_id: selectedClassId,
+          subject_id: selectedSubjectId,
+          teacher_id: selectedTeacherId,
+          classroom_id: selectedClassroomId === "no-classroom" ? undefined : selectedClassroomId,
+          time_slot_id: timeSlotId,
           day,
-          timeSlotId,
+          // Legacy compatibility fields
           classId: selectedClassId,
           subjectId: selectedSubjectId,
           teacherId: selectedTeacherId,
           classroomId: selectedClassroomId === "no-classroom" ? undefined : selectedClassroomId,
+          timeSlotId: timeSlotId,
           batchId: selectedBatchId === "no-batch" ? undefined : selectedBatchId,
         };
         

@@ -4,14 +4,37 @@ import { Timetable, Class, Teacher, Subject, TimeSlot, Lesson, Classroom } from 
 export const TimetableService = {
   async getTimetable(): Promise<Timetable | null> {
     try {
-      const { data, error } = await (supabase as any)
+      const { data: timetableData, error: timetableError } = await (supabase as any)
         .from('timetables')
         .select('*')
         .limit(1)
         .maybeSingle();
       
-      if (error) throw error;
-      return data;
+      if (timetableError) throw timetableError;
+      if (!timetableData) return null;
+
+      // Get lessons for this timetable
+      const { data: lessonsData, error: lessonsError } = await (supabase as any)
+        .from('lessons')
+        .select('*')
+        .eq('timetable_id', timetableData.id);
+      
+      if (lessonsError) throw lessonsError;
+
+      // Transform lessons to include compatibility fields
+      const transformedLessons = (lessonsData || []).map((lesson: any) => ({
+        ...lesson,
+        classId: lesson.class_id,
+        subjectId: lesson.subject_id,
+        teacherId: lesson.teacher_id,
+        classroomId: lesson.classroom_id,
+        timeSlotId: lesson.time_slot_id,
+      }));
+
+      return {
+        ...timetableData,
+        lessons: transformedLessons,
+      };
     } catch {
       return null;
     }
@@ -60,10 +83,21 @@ export const TimetableService = {
     try {
       const { data, error } = await (supabase as any)
         .from('time_slots')
-        .select('*');
+        .select('*')
+        .order('slot_order');
       
       if (error) throw error;
-      return data || [];
+      
+      // Transform to include compatibility fields
+      const transformedData = (data || []).map((slot: any) => ({
+        ...slot,
+        startTime: slot.start_time,
+        endTime: slot.end_time,
+        isBreak: slot.is_break,
+        name: `${slot.start_time} - ${slot.end_time}`,
+      }));
+      
+      return transformedData;
     } catch {
       return [];
     }
@@ -76,7 +110,14 @@ export const TimetableService = {
         .select('*');
       
       if (error) throw error;
-      return data || [];
+      
+      // Transform to include compatibility fields
+      const transformedData = (data || []).map((classroom: any) => ({
+        ...classroom,
+        isLab: classroom.is_lab,
+      }));
+      
+      return transformedData;
     } catch {
       return [];
     }
@@ -92,7 +133,14 @@ export const TimetableService = {
   async updateLesson(lesson: Lesson): Promise<void> {
     const { error } = await (supabase as any)
       .from('lessons')
-      .update(lesson)
+      .update({
+        class_id: lesson.classId || lesson.class_id,
+        subject_id: lesson.subjectId || lesson.subject_id,
+        teacher_id: lesson.teacherId || lesson.teacher_id,
+        classroom_id: lesson.classroomId || lesson.classroom_id,
+        time_slot_id: lesson.timeSlotId || lesson.time_slot_id,
+        day: lesson.day,
+      })
       .eq('id', lesson.id);
     
     if (error) throw error;
@@ -108,9 +156,28 @@ export const TimetableService = {
   },
 
   async addLesson(lesson: Omit<Lesson, "id">): Promise<void> {
+    // Get the first timetable if timetable_id is not provided
+    let timetableId = lesson.timetable_id;
+    if (!timetableId) {
+      const { data: timetableData } = await (supabase as any)
+        .from('timetables')
+        .select('id')
+        .limit(1)
+        .single();
+      timetableId = timetableData?.id;
+    }
+
     const { error } = await (supabase as any)
       .from('lessons')
-      .insert(lesson);
+      .insert({
+        timetable_id: timetableId,
+        class_id: lesson.classId || lesson.class_id,
+        subject_id: lesson.subjectId || lesson.subject_id,
+        teacher_id: lesson.teacherId || lesson.teacher_id,
+        classroom_id: lesson.classroomId || lesson.classroom_id,
+        time_slot_id: lesson.timeSlotId || lesson.time_slot_id,
+        day: lesson.day,
+      });
     
     if (error) throw error;
   },
@@ -118,7 +185,10 @@ export const TimetableService = {
   async updateTimetable(timetable: Timetable): Promise<void> {
     const { error } = await (supabase as any)
       .from('timetables')
-      .update(timetable)
+      .update({
+        name: timetable.name,
+        timing_id: timetable.timing_id,
+      })
       .eq('id', timetable.id);
     
     if (error) throw error;
