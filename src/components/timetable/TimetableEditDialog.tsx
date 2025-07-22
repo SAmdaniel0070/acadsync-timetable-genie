@@ -19,7 +19,7 @@ import {
   Batch, 
   Classroom 
 } from "@/types";
-import { DataService } from "@/services/mockDataService";
+import { TimetableService } from "@/services/timetableService";
 import { useToast } from "@/components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -99,26 +99,15 @@ export const TimetableEditDialog: React.FC<TimetableEditDialogProps> = ({
     }
   }, [open, lesson]);
 
-  // Load batches when class changes
+  // Load batches when class changes (disabled for now)
   const loadBatchesForClass = async (classId: string) => {
-    if (!classId) {
-      setBatches([]);
-      return;
-    }
-    
-    try {
-      const batchData = await DataService.getBatchesByClass(classId);
-      setBatches(batchData);
-    } catch (error) {
-      console.error("Error loading batches:", error);
-      setBatches([]);
-    }
+    setBatches([]); // Disabled batch functionality for now
   };
 
   // Load all classrooms
   const loadClassrooms = async () => {
     try {
-      const classroomData = await DataService.getClassrooms();
+      const classroomData = await TimetableService.getClassrooms();
       setClassrooms(classroomData);
     } catch (error) {
       console.error("Error loading classrooms:", error);
