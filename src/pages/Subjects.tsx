@@ -4,7 +4,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
-import { DataService } from "@/services/mockData";
+import { TimetableService } from "@/services/timetableService";
+import { supabase } from "@/integrations/supabase/client";
 import { Subject, Class } from "@/types";
 import { SubjectFormDialog } from "@/components/subject/SubjectFormDialog";
 import { SubjectList } from "@/components/subject/SubjectList";
@@ -23,8 +24,8 @@ const Subjects = () => {
     try {
       setLoading(true);
       const [subjectsData, classesData] = await Promise.all([
-        DataService.getSubjects(),
-        DataService.getClasses(),
+        TimetableService.getSubjects(),
+        TimetableService.getClasses(),
       ]);
       setSubjects(subjectsData);
       setClasses(classesData);
@@ -47,20 +48,30 @@ const Subjects = () => {
   const handleSubmit = async (data: Omit<Subject, "id">) => {
     try {
       if (currentSubject) {
-        const updatedSubject = await DataService.updateSubject({
-          ...currentSubject,
-          ...data,
-        });
-        setSubjects(subjects.map(s => 
-          s.id === updatedSubject.id ? updatedSubject : s
-        ));
+        const { error } = await supabase
+          .from('subjects')
+          .update({
+            name: data.name,
+            code: data.code,
+          })
+          .eq('id', currentSubject.id);
+        
+        if (error) throw error;
+        await fetchData();
         toast({
           title: "Success",
           description: "Subject updated successfully.",
         });
       } else {
-        const newSubject = await DataService.addSubject(data);
-        setSubjects([...subjects, newSubject]);
+        const { error } = await supabase
+          .from('subjects')
+          .insert({
+            name: data.name,
+            code: data.code,
+          });
+        
+        if (error) throw error;
+        await fetchData();
         toast({
           title: "Success",
           description: "Subject added successfully.",
@@ -81,8 +92,13 @@ const Subjects = () => {
   const handleDelete = async () => {
     try {
       if (currentSubject) {
-        await DataService.deleteSubject(currentSubject.id);
-        setSubjects(subjects.filter(s => s.id !== currentSubject.id));
+        const { error } = await supabase
+          .from('subjects')
+          .delete()
+          .eq('id', currentSubject.id);
+        
+        if (error) throw error;
+        await fetchData();
         toast({
           title: "Success",
           description: "Subject deleted successfully.",

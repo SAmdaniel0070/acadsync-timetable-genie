@@ -4,7 +4,8 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { TimeSlot } from "@/types";
-import { DataService } from "@/services/mockData";
+import { TimetableService } from "@/services/timetableService";
+import { supabase } from "@/integrations/supabase/client";
 import { Plus, Edit, Trash } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -28,7 +29,7 @@ const Timings = () => {
   const fetchTimeSlots = async () => {
     try {
       setLoading(true);
-      const data = await DataService.getTimeSlots();
+      const data = await TimetableService.getTimeSlots();
       setTimeSlots(data);
     } catch (error) {
       console.error("Error fetching time slots:", error);
@@ -71,32 +72,42 @@ const Timings = () => {
 
       if (currentTimeSlot) {
         // Update existing time slot
-        const updatedTimeSlot = await DataService.updateTimeSlot({
-          ...currentTimeSlot,
-          name: name,
-          startTime: formData.startTime,
-          endTime: formData.endTime,
-          isBreak: formData.isBreak,
-        });
+        const { error } = await supabase
+          .from('time_slots')
+          .update({
+            start_time: formData.startTime,
+            end_time: formData.endTime,
+            is_break: formData.isBreak,
+          })
+          .eq('id', currentTimeSlot.id);
 
-        setTimeSlots(timeSlots.map(ts => 
-          ts.id === updatedTimeSlot.id ? updatedTimeSlot : ts
-        ));
+        if (error) throw error;
+        await fetchTimeSlots();
 
         toast({
           title: "Success",
           description: "Time slot updated successfully.",
         });
       } else {
-        // Add new time slot
-        const newTimeSlot = await DataService.addTimeSlot({
-          name: name,
-          startTime: formData.startTime,
-          endTime: formData.endTime,
-          isBreak: formData.isBreak,
-        });
+        // Add new time slot - need to get the first timing_id
+        const { data: timingData } = await supabase
+          .from('timetables')
+          .select('timing_id')
+          .limit(1)
+          .single();
+        
+        const { error } = await supabase
+          .from('time_slots')
+          .insert({
+            timing_id: timingData?.timing_id,
+            start_time: formData.startTime,
+            end_time: formData.endTime,
+            is_break: formData.isBreak,
+            slot_order: timeSlots.length + 1,
+          });
 
-        setTimeSlots([...timeSlots, newTimeSlot]);
+        if (error) throw error;
+        await fetchTimeSlots();
 
         toast({
           title: "Success",
@@ -119,8 +130,13 @@ const Timings = () => {
   const handleDeleteTimeSlot = async () => {
     try {
       if (currentTimeSlot) {
-        await DataService.deleteTimeSlot(currentTimeSlot.id);
-        setTimeSlots(timeSlots.filter(ts => ts.id !== currentTimeSlot.id));
+        const { error } = await supabase
+          .from('time_slots')
+          .delete()
+          .eq('id', currentTimeSlot.id);
+        
+        if (error) throw error;
+        await fetchTimeSlots();
         
         toast({
           title: "Success",
@@ -148,10 +164,10 @@ const Timings = () => {
   const openEditDialog = (timeSlot: TimeSlot) => {
     setCurrentTimeSlot(timeSlot);
     setFormData({
-      name: timeSlot.name,
-      startTime: timeSlot.startTime,
-      endTime: timeSlot.endTime,
-      isBreak: timeSlot.isBreak,
+      name: timeSlot.name || `${timeSlot.start_time} - ${timeSlot.end_time}`,
+      startTime: timeSlot.start_time,
+      endTime: timeSlot.end_time,
+      isBreak: timeSlot.is_break,
     });
     setIsDialogOpen(true);
   };
@@ -175,20 +191,20 @@ const Timings = () => {
     { 
       key: "startTime", 
       title: "Start Time",
-      render: (timeSlot: TimeSlot) => <span>{timeSlot.startTime}</span>
+      render: (timeSlot: TimeSlot) => <span>{timeSlot.start_time}</span>
     },
     { 
       key: "endTime", 
       title: "End Time",
-      render: (timeSlot: TimeSlot) => <span>{timeSlot.endTime}</span>
+      render: (timeSlot: TimeSlot) => <span>{timeSlot.end_time}</span>
     },
     {
       key: "duration",
       title: "Duration",
       render: (timeSlot: TimeSlot) => {
         // Convert times to minutes since midnight for calculation
-        const [startHour, startMinute] = timeSlot.startTime.split(":").map(Number);
-        const [endHour, endMinute] = timeSlot.endTime.split(":").map(Number);
+        const [startHour, startMinute] = timeSlot.start_time.split(":").map(Number);
+        const [endHour, endMinute] = timeSlot.end_time.split(":").map(Number);
         
         const startMinutes = startHour * 60 + startMinute;
         const endMinutes = endHour * 60 + endMinute;
@@ -212,11 +228,11 @@ const Timings = () => {
       title: "Type",
       render: (timeSlot: TimeSlot) => (
         <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-          timeSlot.isBreak 
+          timeSlot.is_break 
             ? "bg-orange-100 text-orange-800" 
             : "bg-green-100 text-green-800"
         }`}>
-          {timeSlot.isBreak ? "Break" : "Class"}
+          {timeSlot.is_break ? "Break" : "Class"}
         </span>
       ),
     },
@@ -337,8 +353,8 @@ const Timings = () => {
           </DialogHeader>
           <p>
             Are you sure you want to delete the time slot from{" "}
-            <span className="font-semibold">{currentTimeSlot?.startTime}</span> to{" "}
-            <span className="font-semibold">{currentTimeSlot?.endTime}</span>? 
+            <span className="font-semibold">{currentTimeSlot?.start_time}</span> to{" "}
+            <span className="font-semibold">{currentTimeSlot?.end_time}</span>?
             This action cannot be undone.
           </p>
           <DialogFooter>

@@ -5,7 +5,8 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { Teacher } from "@/types";
-import { DataService } from "@/services/mockData";
+import { TimetableService } from "@/services/timetableService";
+import { supabase } from "@/integrations/supabase/client";
 import { Plus, Edit, Trash } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -27,7 +28,7 @@ const Teachers = () => {
   const fetchTeachers = async () => {
     try {
       setLoading(true);
-      const data = await DataService.getTeachers();
+      const data = await TimetableService.getTeachers();
       setTeachers(data);
     } catch (error) {
       console.error("Error fetching teachers:", error);
@@ -68,16 +69,17 @@ const Teachers = () => {
 
       if (currentTeacher) {
         // Update existing teacher
-        const updatedTeacher = await DataService.updateTeacher({
-          ...currentTeacher,
-          name: formData.name,
-          email: formData.email,
-          subjects: formData.subjects,
-        });
+        const { error } = await supabase
+          .from('teachers')
+          .update({
+            name: formData.name,
+            email: formData.email,
+            specialization: formData.subjects.join(', '),
+          })
+          .eq('id', currentTeacher.id);
 
-        setTeachers(teachers.map(t => 
-          t.id === updatedTeacher.id ? updatedTeacher : t
-        ));
+        if (error) throw error;
+        await fetchTeachers();
 
         toast({
           title: "Success",
@@ -85,13 +87,16 @@ const Teachers = () => {
         });
       } else {
         // Add new teacher
-        const newTeacher = await DataService.addTeacher({
-          name: formData.name,
-          email: formData.email,
-          subjects: formData.subjects,
-        });
+        const { error } = await supabase
+          .from('teachers')
+          .insert({
+            name: formData.name,
+            email: formData.email,
+            specialization: formData.subjects.join(', '),
+          });
 
-        setTeachers([...teachers, newTeacher]);
+        if (error) throw error;
+        await fetchTeachers();
 
         toast({
           title: "Success",
@@ -114,8 +119,13 @@ const Teachers = () => {
   const handleDeleteTeacher = async () => {
     try {
       if (currentTeacher) {
-        await DataService.deleteTeacher(currentTeacher.id);
-        setTeachers(teachers.filter(t => t.id !== currentTeacher.id));
+        const { error } = await supabase
+          .from('teachers')
+          .delete()
+          .eq('id', currentTeacher.id);
+        
+        if (error) throw error;
+        await fetchTeachers();
         
         toast({
           title: "Success",
@@ -145,7 +155,7 @@ const Teachers = () => {
     setFormData({
       name: teacher.name,
       email: teacher.email || "",
-      subjects: teacher.subjects,
+      subjects: teacher.specialization ? [teacher.specialization] : [],
     });
     setIsDialogOpen(true);
   };
@@ -171,7 +181,7 @@ const Teachers = () => {
       key: "subjects",
       title: "Subjects",
       render: (teacher: Teacher) => (
-        <span>{teacher.subjects.length} subjects assigned</span>
+        <span>{teacher.specialization || 'No specialization'}</span>
       ),
     },
     {

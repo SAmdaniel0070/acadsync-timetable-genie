@@ -4,7 +4,8 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { Classroom } from "@/types";
-import { DataService } from "@/services/mockData";
+import { TimetableService } from "@/services/timetableService";
+import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { Plus, PenSquare, Trash2, BuildingIcon } from "lucide-react";
 import { ClassroomDialog } from "@/components/classroom/ClassroomDialog";
@@ -32,7 +33,7 @@ export default function Classrooms() {
   const fetchClassrooms = async () => {
     try {
       setLoading(true);
-      const data = await DataService.getClassrooms();
+      const data = await TimetableService.getClassrooms();
       setClassrooms(data);
     } catch (error) {
       console.error("Error fetching classrooms:", error);
@@ -66,14 +67,31 @@ export default function Classrooms() {
       
       if (classroom.id) {
         // Update existing classroom
-        updatedClassroom = await DataService.updateClassroom(classroom);
+        const { error } = await supabase
+          .from('classrooms')
+          .update({
+            name: classroom.name,
+            capacity: classroom.capacity,
+            is_lab: classroom.isLab,
+          })
+          .eq('id', classroom.id);
+        
+        if (error) throw error;
         toast({
           title: "Success",
           description: "Classroom updated successfully",
         });
       } else {
         // Add new classroom
-        updatedClassroom = await DataService.addClassroom(classroom);
+        const { error } = await supabase
+          .from('classrooms')
+          .insert({
+            name: classroom.name,
+            capacity: classroom.capacity,
+            is_lab: classroom.isLab,
+          });
+        
+        if (error) throw error;
         toast({
           title: "Success",
           description: "Classroom added successfully",
@@ -101,7 +119,12 @@ export default function Classrooms() {
     if (!classroomToDelete) return;
     
     try {
-      await DataService.deleteClassroom(classroomToDelete.id);
+      const { error } = await supabase
+        .from('classrooms')
+        .delete()
+        .eq('id', classroomToDelete.id);
+      
+      if (error) throw error;
       await fetchClassrooms();
       toast({
         title: "Success",
@@ -131,8 +154,8 @@ export default function Classrooms() {
       key: "type", 
       title: "Type",
       render: (classroom: Classroom) => (
-        <Badge variant={classroom.isLab ? "default" : "outline"}>
-          {classroom.isLab ? "Laboratory" : "Classroom"}
+        <Badge variant={classroom.is_lab ? "default" : "outline"}>
+          {classroom.is_lab ? "Laboratory" : "Classroom"}
         </Badge>
       )
     },
@@ -197,7 +220,7 @@ export default function Classrooms() {
         
         <TabsContent value="labs" className="space-y-4 mt-4">
           <DataTable
-            data={classrooms.filter(c => c.isLab)}
+            data={classrooms.filter(c => c.is_lab)}
             columns={columns}
             isLoading={loading}
           />
@@ -205,7 +228,7 @@ export default function Classrooms() {
         
         <TabsContent value="regular" className="space-y-4 mt-4">
           <DataTable
-            data={classrooms.filter(c => !c.isLab)}
+            data={classrooms.filter(c => !c.is_lab)}
             columns={columns}
             isLoading={loading}
           />
