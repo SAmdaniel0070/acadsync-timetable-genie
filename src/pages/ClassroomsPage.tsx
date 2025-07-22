@@ -99,14 +99,14 @@ const ClassroomsPage = () => {
       key: "building",
       title: "Building",
       render: (classroom: Classroom) => (
-        <span>{classroom.building || "Main Building"}</span>
+        <span>Main Building</span>
       )
     },
     {
       key: "floor",
       title: "Floor",
       render: (classroom: Classroom) => (
-        <span>{classroom.floor || "Ground Floor"}</span>
+        <span>Ground Floor</span>
       )
     },
   ];

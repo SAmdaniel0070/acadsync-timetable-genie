@@ -28,9 +28,9 @@ const Classes = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [currentClass, setCurrentClass] = React.useState<Class | null>(null);
-  const [formData, setFormData] = React.useState<Partial<Class>>({
+  const [formData, setFormData] = React.useState({
     name: "",
-    year: 1,
+    year_id: "",
   });
   
   // Batch state
@@ -66,7 +66,7 @@ const Classes = () => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: name === "year" ? parseInt(value, 10) : value,
+      [name]: value,
     }));
   };
 
@@ -83,14 +83,14 @@ const Classes = () => {
     try {
       await DataService.addClass({
         name: formData.name || "",
-        year: formData.year || 1,
+        year_id: formData.year_id || "",
       });
       toast({
         title: "Success",
         description: "Class added successfully",
       });
       setIsAddDialogOpen(false);
-      setFormData({ name: "", year: 1 });
+      setFormData({ name: "", year_id: "" });
       fetchClasses();
     } catch (error) {
       console.error("Error adding class:", error);
@@ -110,7 +110,7 @@ const Classes = () => {
       await DataService.updateClass({
         id: currentClass.id,
         name: formData.name || currentClass.name,
-        year: formData.year || currentClass.year,
+        year_id: formData.year_id || currentClass.year_id,
       });
       toast({
         title: "Success",
@@ -118,7 +118,7 @@ const Classes = () => {
       });
       setIsEditDialogOpen(false);
       setCurrentClass(null);
-      setFormData({ name: "", year: 1 });
+      setFormData({ name: "", year_id: "" });
       fetchClasses();
     } catch (error) {
       console.error("Error updating class:", error);
@@ -200,7 +200,7 @@ const Classes = () => {
     setCurrentClass(classItem);
     setFormData({
       name: classItem.name,
-      year: classItem.year,
+      year_id: classItem.year_id || "",
     });
     setIsEditDialogOpen(true);
   };
@@ -230,51 +230,20 @@ const Classes = () => {
               <CollapsibleTrigger asChild>
                 <Button variant="ghost" size="sm">
                   <Users className="h-4 w-4 mr-1" />
-                  Batches ({classItem.batches?.length || 0})
+                  Info
                 </Button>
               </CollapsibleTrigger>
             </div>
             <CollapsibleContent className="mt-2">
               <div className="pl-4 border-l-2 border-gray-200">
-                {classItem.batches && classItem.batches.length > 0 ? (
-                  <ul className="space-y-2">
-                    {classItem.batches.map(batch => (
-                      <li key={batch.id} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                        <span>{batch.name}</span>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => handleDeleteBatch(batch.id)}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-gray-500 text-sm">No batches yet</p>
-                )}
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => {
-                    setCurrentClass(classItem);
-                    setBatchFormData({ name: "" });
-                    setIsBatchDialogOpen(true);
-                  }}
-                  className="mt-2"
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Batch
-                </Button>
+                <p className="text-gray-500 text-sm">Year ID: {classItem.year_id || 'Not assigned'}</p>
               </div>
             </CollapsibleContent>
           </Collapsible>
         </div>
       )
     },
-    { key: "year", title: "Year" },
+    { key: "year_id", title: "Year ID" },
     {
       key: "actions",
       title: "Actions",
@@ -313,7 +282,7 @@ const Classes = () => {
         description="Add, edit or remove classes" 
         actions={
           <Button onClick={() => {
-            setFormData({ name: "", year: 1 });
+            setFormData({ name: "", year_id: "" });
             setIsAddDialogOpen(true);
           }}>
             <Plus className="mr-2 h-4 w-4" />
@@ -351,13 +320,12 @@ const Classes = () => {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="year">Academic Year</Label>
+                <Label htmlFor="year_id">Year ID</Label>
                 <Input
-                  id="year"
-                  name="year"
-                  type="number"
-                  min="1"
-                  value={formData.year}
+                  id="year_id"
+                  name="year_id"
+                  placeholder="e.g., year-uuid"
+                  value={formData.year_id}
                   onChange={handleInputChange}
                   required
                 />
@@ -400,13 +368,12 @@ const Classes = () => {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="edit-year">Academic Year</Label>
+                <Label htmlFor="edit-year_id">Year ID</Label>
                 <Input
-                  id="edit-year"
-                  name="year"
-                  type="number"
-                  min="1"
-                  value={formData.year}
+                  id="edit-year_id"
+                  name="year_id"
+                  placeholder="e.g., year-uuid"
+                  value={formData.year_id}
                   onChange={handleInputChange}
                   required
                 />

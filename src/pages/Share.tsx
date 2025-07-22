@@ -84,13 +84,13 @@ const Share = () => {
         return;
       }
       
-      await DataService.shareTimetable(
-        "whatsapp", 
-        timetable?.id || "", 
-        activeView, 
-        activeView === "class" ? selectedClassId : 
-        activeView === "teacher" ? selectedTeacherId : undefined
-      );
+      await DataService.shareTimetable({
+        method: "whatsapp",
+        timetableId: timetable?.id || "",
+        view: activeView,
+        filterId: activeView === "class" ? selectedClassId : 
+          activeView === "teacher" ? selectedTeacherId : undefined
+      });
       
       toast({
         title: "Timetable Shared",
@@ -117,13 +117,13 @@ const Share = () => {
         return;
       }
       
-      await DataService.shareTimetable(
-        "email", 
-        timetable?.id || "", 
-        activeView, 
-        activeView === "class" ? selectedClassId : 
-        activeView === "teacher" ? selectedTeacherId : undefined
-      );
+      await DataService.shareTimetable({
+        method: "email",
+        timetableId: timetable?.id || "",
+        view: activeView,
+        filterId: activeView === "class" ? selectedClassId : 
+          activeView === "teacher" ? selectedTeacherId : undefined
+      });
       
       toast({
         title: "Timetable Shared",
@@ -141,13 +141,13 @@ const Share = () => {
 
   const handleDownload = async () => {
     try {
-      await DataService.shareTimetable(
-        "download", 
-        timetable?.id || "", 
-        activeView, 
-        activeView === "class" ? selectedClassId : 
-        activeView === "teacher" ? selectedTeacherId : undefined
-      );
+      await DataService.shareTimetable({
+        method: "download",
+        timetableId: timetable?.id || "",
+        view: activeView,
+        filterId: activeView === "class" ? selectedClassId : 
+          activeView === "teacher" ? selectedTeacherId : undefined
+      });
       
       toast({
         title: "Timetable Downloaded",
