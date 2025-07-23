@@ -117,6 +117,17 @@ const Timings = () => {
           timingId = newTiming.id;
         }
         
+        // Get the current maximum slot_order for this timing
+        const { data: maxOrderData } = await supabase
+          .from('time_slots')
+          .select('slot_order')
+          .eq('timing_id', timingId)
+          .order('slot_order', { ascending: false })
+          .limit(1)
+          .single();
+        
+        const nextSlotOrder = (maxOrderData?.slot_order || 0) + 1;
+        
         const { error } = await supabase
           .from('time_slots')
           .insert({
@@ -124,7 +135,7 @@ const Timings = () => {
             start_time: formData.startTime,
             end_time: formData.endTime,
             is_break: formData.isBreak,
-            slot_order: timeSlots.length + 1,
+            slot_order: nextSlotOrder,
           });
 
         if (error) throw error;
