@@ -3,7 +3,7 @@ import React from "react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { DataService } from "@/services/mockData";
+import { TimetableService } from "@/services/timetableService";
 import { Calendar, GraduationCap, Users, BookOpen, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -20,11 +20,11 @@ const Dashboard = () => {
     const fetchStats = async () => {
       try {
         const [classes, teachers, subjects, timeSlots, timetable] = await Promise.all([
-          DataService.getClasses(),
-          DataService.getTeachers(),
-          DataService.getSubjects(),
-          DataService.getTimeSlots(),
-          DataService.getTimetable(),
+          TimetableService.getClasses(),
+          TimetableService.getTeachers(),
+          TimetableService.getSubjects(),
+          TimetableService.getTimeSlots(),
+          TimetableService.getTimetable(),
         ]);
         
         setStats({
@@ -32,7 +32,7 @@ const Dashboard = () => {
           teachers: teachers.length,
           subjects: subjects.length,
           timeSlots: timeSlots.length,
-          lessons: timetable.lessons.length,
+          lessons: timetable?.lessons?.length || 0,
         });
       } catch (error) {
         console.error("Error fetching dashboard data", error);

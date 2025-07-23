@@ -124,7 +124,41 @@ export const TimetableService = {
   },
 
   async generateTimetable(): Promise<Timetable> {
-    const { data, error } = await supabase.functions.invoke('generate-timetable');
+    // Get the first timing for default parameters
+    const { data: timingData } = await (supabase as any)
+      .from('timings')
+      .select('id')
+      .limit(1)
+      .single();
+
+    if (!timingData) {
+      throw new Error('No timing configuration found. Please create timing slots first.');
+    }
+
+    // Check if we have the required data
+    const [classes, subjects, teachers] = await Promise.all([
+      this.getClasses(),
+      this.getSubjects(), 
+      this.getTeachers()
+    ]);
+
+    if (classes.length === 0) {
+      throw new Error('No classes found. Please add classes first.');
+    }
+    if (subjects.length === 0) {
+      throw new Error('No subjects found. Please add subjects first.');
+    }
+    if (teachers.length === 0) {
+      throw new Error('No teachers found. Please add teachers first.');
+    }
+
+    const { data, error } = await supabase.functions.invoke('generate-timetable', {
+      body: {
+        name: `Generated Timetable ${new Date().toLocaleDateString()}`,
+        academicYear: new Date().getFullYear().toString(),
+        timingId: timingData.id
+      }
+    });
     
     if (error) throw error;
     return data;
