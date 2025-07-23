@@ -10,6 +10,7 @@ import {
   User,
   Users,
   BookOpen,
+  Building,
   Clock,
   Share,
 } from "lucide-react";
@@ -45,6 +46,11 @@ const mainNavItems: NavItem[] = [
     title: "Timings",
     icon: Clock,
     href: "/timings",
+  },
+  {
+    title: "Classrooms",
+    icon: Building,
+    href: "/classrooms",
   },
   {
     title: "Timetables",

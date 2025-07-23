@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import Classes from "./pages/Classes";
 import Classrooms from "./pages/Classrooms";
 import ClassroomsPage from "./pages/ClassroomsPage";
+import ClassroomsManagement from "./pages/ClassroomsManagement";
 import Timetables from "./pages/Timetables";
 import Teachers from "./pages/Teachers";
 import Subjects from "./pages/Subjects";
@@ -29,7 +30,7 @@ const App = () => (
             <Route path="/" element={<Dashboard />} />
             <Route path="/classes" element={<Classes />} />
             <Route path="/classes/classrooms" element={<ClassroomsPage />} />
-            <Route path="/classrooms" element={<Classrooms />} />
+            <Route path="/classrooms" element={<ClassroomsManagement />} />
             <Route path="/timetables" element={<Timetables />} />
             <Route path="/teachers" element={<Teachers />} />
             <Route path="/subjects" element={<Subjects />} />

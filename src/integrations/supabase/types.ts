@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      class_classroom_assignments: {
+        Row: {
+          class_id: string
+          classroom_id: string
+          created_at: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          class_id: string
+          classroom_id: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          class_id?: string
+          classroom_id?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       classes: {
         Row: {
           created_at: string
@@ -69,6 +93,42 @@ export type Database = {
           id?: string
           is_lab?: boolean
           name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      lab_schedules: {
+        Row: {
+          class_id: string | null
+          classroom_id: string
+          created_at: string
+          day: number
+          id: string
+          subject_id: string
+          teacher_id: string
+          time_slot_id: string
+          updated_at: string
+        }
+        Insert: {
+          class_id?: string | null
+          classroom_id: string
+          created_at?: string
+          day: number
+          id?: string
+          subject_id: string
+          teacher_id: string
+          time_slot_id: string
+          updated_at?: string
+        }
+        Update: {
+          class_id?: string | null
+          classroom_id?: string
+          created_at?: string
+          day?: number
+          id?: string
+          subject_id?: string
+          teacher_id?: string
+          time_slot_id?: string
           updated_at?: string
         }
         Relationships: []
