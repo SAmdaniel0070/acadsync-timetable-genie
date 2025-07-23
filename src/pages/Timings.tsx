@@ -89,17 +89,38 @@ const Timings = () => {
           description: "Time slot updated successfully.",
         });
       } else {
-        // Add new time slot - need to get the first timing_id
-        const { data: timingData } = await supabase
-          .from('timetables')
-          .select('timing_id')
+        // Add new time slot - need to get or create a timing_id
+        let timingId = null;
+        
+        // First try to get existing timing
+        const { data: existingTiming } = await supabase
+          .from('timings')
+          .select('id')
           .limit(1)
           .single();
+        
+        if (existingTiming) {
+          timingId = existingTiming.id;
+        } else {
+          // Create a default timing if none exists
+          const { data: newTiming, error: timingError } = await supabase
+            .from('timings')
+            .insert({
+              name: 'Default Timing',
+              working_days: [0, 1, 2, 3, 4, 5], // Monday to Saturday
+              periods: {}
+            })
+            .select('id')
+            .single();
+            
+          if (timingError) throw timingError;
+          timingId = newTiming.id;
+        }
         
         const { error } = await supabase
           .from('time_slots')
           .insert({
-            timing_id: timingData?.timing_id,
+            timing_id: timingId,
             start_time: formData.startTime,
             end_time: formData.endTime,
             is_break: formData.isBreak,
