@@ -30,6 +30,8 @@ const ClassroomsManagement = () => {
   const [currentClassroom, setCurrentClassroom] = useState<Classroom | null>(null);
   const [classroomAssignments, setClassroomAssignments] = useState<any[]>([]);
   const [labSchedules, setLabSchedules] = useState<any[]>([]);
+  const [unassignedClasses, setUnassignedClasses] = useState<Class[]>([]);
+  const [availableClassrooms, setAvailableClassrooms] = useState<Classroom[]>([]);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -90,6 +92,16 @@ const ClassroomsManagement = () => {
           classes:class_id(name)
         `);
       setLabSchedules(schedules || []);
+
+      // Calculate unassigned classes and available classrooms
+      const assignedClassIds = new Set((assignments || []).map((a: any) => a.class_id));
+      const assignedClassroomIds = new Set((assignments || []).map((a: any) => a.classroom_id));
+      
+      const unassigned = classesData.filter(cls => !assignedClassIds.has(cls.id));
+      const available = classroomsData.filter(room => !assignedClassroomIds.has(room.id) && !room.is_lab);
+      
+      setUnassignedClasses(unassigned);
+      setAvailableClassrooms(available);
     } catch (error) {
       console.error("Error fetching data:", error);
       toast({
@@ -576,11 +588,14 @@ const ClassroomsManagement = () => {
                   <SelectValue placeholder="Select a class" />
                 </SelectTrigger>
                 <SelectContent>
-                  {classes.map((cls) => (
+                  {unassignedClasses.map((cls) => (
                     <SelectItem key={cls.id} value={cls.id}>
                       {cls.name}
                     </SelectItem>
                   ))}
+                  {unassignedClasses.length === 0 && (
+                    <SelectItem disabled value="">No unassigned classes available</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -593,11 +608,14 @@ const ClassroomsManagement = () => {
                   <SelectValue placeholder="Select a classroom" />
                 </SelectTrigger>
                 <SelectContent>
-                  {classrooms.map((classroom) => (
+                  {availableClassrooms.map((classroom) => (
                     <SelectItem key={classroom.id} value={classroom.id}>
                       {classroom.name} ({classroom.capacity} capacity)
                     </SelectItem>
                   ))}
+                  {availableClassrooms.length === 0 && (
+                    <SelectItem disabled value="">No available classrooms</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
