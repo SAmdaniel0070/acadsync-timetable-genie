@@ -47,30 +47,94 @@ class TimetableGenerator {
     };
   }
 
-  // Find suitable classroom for a subject
+  // Find suitable classroom for a subject and class
   findSuitableClassroom(
     subject: any,
+    classId: string,
     classrooms: any[],
+    classroomAssignments: any[],
+    labSchedules: any[],
     day: number,
     timeSlotId: string,
     existingLessons: any[]
   ): any | null {
     if (!classrooms || classrooms.length === 0) return null;
 
+    // First check if this class has a dedicated classroom assignment
+    const classroomAssignment = classroomAssignments.find(assignment => 
+      assignment.class_id === classId
+    );
+
+    let preferredClassrooms = classrooms;
+    
+    if (classroomAssignment) {
+      // Use assigned classroom if available
+      const assignedClassroom = classrooms.find(c => c.id === classroomAssignment.classroom_id);
+      if (assignedClassroom) {
+        preferredClassrooms = [assignedClassroom];
+      }
+    }
+
+    // For lab subjects, check lab schedules first
+    if (subject.is_lab || subject.name.toLowerCase().includes('lab')) {
+      const relevantLabSchedule = labSchedules.find(schedule =>
+        schedule.subject_id === subject.id &&
+        schedule.day === day &&
+        schedule.time_slot_id === timeSlotId &&
+        (!schedule.class_id || schedule.class_id === classId)
+      );
+
+      if (relevantLabSchedule) {
+        const labClassroom = classrooms.find(c => c.id === relevantLabSchedule.classroom_id);
+        if (labClassroom && labClassroom.is_lab) {
+          return labClassroom;
+        }
+      }
+    }
+
     // Filter available classrooms
-    const availableClassrooms = classrooms.filter(classroom => {
+    const availableClassrooms = preferredClassrooms.filter(classroom => {
       const isOccupied = existingLessons.some(lesson => 
         lesson.day === day && 
         lesson.time_slot_id === timeSlotId && 
         lesson.classroom_id === classroom.id
       );
       
-      const isCompatible = subject.is_lab ? classroom.is_lab : !classroom.is_lab;
+      // Check lab schedule conflicts
+      const hasLabConflict = labSchedules.some(schedule =>
+        schedule.classroom_id === classroom.id &&
+        schedule.day === day &&
+        schedule.time_slot_id === timeSlotId
+      );
       
-      return !isOccupied && isCompatible;
+      const isCompatible = (subject.is_lab || subject.name.toLowerCase().includes('lab')) 
+        ? classroom.is_lab 
+        : true; // Regular subjects can use any classroom
+      
+      return !isOccupied && !hasLabConflict && isCompatible;
     });
 
-    if (availableClassrooms.length === 0) return null;
+    if (availableClassrooms.length === 0) {
+      // Fallback to any available classroom if preferred ones are occupied
+      const fallbackClassrooms = classrooms.filter(classroom => {
+        const isOccupied = existingLessons.some(lesson => 
+          lesson.day === day && 
+          lesson.time_slot_id === timeSlotId && 
+          lesson.classroom_id === classroom.id
+        );
+        
+        const hasLabConflict = labSchedules.some(schedule =>
+          schedule.classroom_id === classroom.id &&
+          schedule.day === day &&
+          schedule.time_slot_id === timeSlotId
+        );
+        
+        return !isOccupied && !hasLabConflict;
+      });
+      
+      if (fallbackClassrooms.length === 0) return null;
+      return fallbackClassrooms.sort((a, b) => a.capacity - b.capacity)[0];
+    }
 
     // Return smallest suitable classroom
     return availableClassrooms.sort((a, b) => a.capacity - b.capacity)[0];
@@ -90,15 +154,17 @@ class TimetableGenerator {
   async generateTimetable(request: TimetableGenerationRequest): Promise<any> {
     console.log('Starting timetable generation for:', request.name);
 
-    // Fetch all required data
-    const [classesData, subjectsData, teachersData, timeSlotsData, classroomsData, assignmentsData, teacherSubjectsData] = await Promise.all([
+    // Fetch all required data including new tables
+    const [classesData, subjectsData, teachersData, timeSlotsData, classroomsData, assignmentsData, teacherSubjectsData, classroomAssignmentsData, labSchedulesData] = await Promise.all([
       this.supabase.from('classes').select('*'),
       this.supabase.from('subjects').select('*'),
       this.supabase.from('teachers').select('*'),
       this.supabase.from('time_slots').select('*').eq('timing_id', request.timingId).order('slot_order'),
       this.supabase.from('classrooms').select('*'),
       this.supabase.from('subject_class_assignments').select('*'),
-      this.supabase.from('teacher_subject_assignments').select('*')
+      this.supabase.from('teacher_subject_assignments').select('*'),
+      this.supabase.from('class_classroom_assignments').select('*'),
+      this.supabase.from('lab_schedules').select('*')
     ]);
 
     if (classesData.error || subjectsData.error || teachersData.error || timeSlotsData.error) {
@@ -112,8 +178,11 @@ class TimetableGenerator {
     const classrooms = classroomsData.data || [];
     const assignments = assignmentsData.data || [];
     const teacherSubjects = teacherSubjectsData.data || [];
+    const classroomAssignments = classroomAssignmentsData.data || [];
+    const labSchedules = labSchedulesData.data || [];
 
-    console.log(`Found ${classes.length} classes, ${subjects.length} subjects, ${teachers.length} teachers`);
+    console.log(`Found ${classes.length} classes, ${subjects.length} subjects, ${teachers.length} teachers, ${classrooms.length} classrooms`);
+    console.log(`Classroom assignments: ${classroomAssignments.length}, Lab schedules: ${labSchedules.length}`);
 
     // Create timetable record
     const { data: timetableData, error: timetableError } = await this.supabase
@@ -198,7 +267,10 @@ class TimetableGenerator {
                   // Find suitable classroom
                   const classroom = this.findSuitableClassroom(
                     subject,
+                    cls.id,
                     classrooms,
+                    classroomAssignments,
+                    labSchedules,
                     day,
                     timeSlot.id,
                     lessons
