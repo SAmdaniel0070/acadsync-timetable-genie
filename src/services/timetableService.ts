@@ -70,10 +70,18 @@ export const TimetableService = {
     try {
       const { data, error } = await (supabase as any)
         .from('subjects')
-        .select('*');
+        .select(`
+          *,
+          subject_class_assignments(class_id)
+        `);
       
       if (error) throw error;
-      return data || [];
+      
+      return (data || []).map((subject: any) => ({
+        ...subject,
+        classes: subject.subject_class_assignments?.map((assignment: any) => assignment.class_id) || [],
+        periodsPerWeek: 1 // Default value since it's not stored in database yet
+      }));
     } catch {
       return [];
     }

@@ -23,11 +23,22 @@ export const SubjectFormDialog = ({
   currentSubject,
 }: SubjectFormDialogProps) => {
   const [formData, setFormData] = React.useState<Omit<Subject, "id">>({
-    name: currentSubject?.name || "",
-    code: currentSubject?.code || "",
-    classes: currentSubject?.classes || [],
-    periodsPerWeek: currentSubject?.periodsPerWeek || 1
+    name: "",
+    code: "",
+    classes: [],
+    periodsPerWeek: 1
   });
+
+  React.useEffect(() => {
+    if (open) {
+      setFormData({
+        name: currentSubject?.name || "",
+        code: currentSubject?.code || "",
+        classes: currentSubject?.classes || [],
+        periodsPerWeek: currentSubject?.periodsPerWeek || 1
+      });
+    }
+  }, [open, currentSubject]);
 
   const handleSubmit = () => {
     onSubmit(formData);
@@ -76,24 +87,35 @@ export const SubjectFormDialog = ({
           </div>
           <div className="grid gap-2">
             <Label>Assign to Classes</Label>
-            <Select
-              value={formData.classes?.join(",")}
-              onValueChange={(value) => setFormData({ 
-                ...formData, 
-                classes: value ? value.split(",") : [] 
-              })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select classes" />
-              </SelectTrigger>
-              <SelectContent>
-                {classes.map((cls) => (
-                  <SelectItem key={cls.id} value={cls.id}>
+            <div className="space-y-2">
+              {classes.map((cls) => (
+                <div key={cls.id} className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id={`class-${cls.id}`}
+                    checked={formData.classes?.includes(cls.id) || false}
+                    onChange={(e) => {
+                      const currentClasses = formData.classes || [];
+                      if (e.target.checked) {
+                        setFormData({
+                          ...formData,
+                          classes: [...currentClasses, cls.id]
+                        });
+                      } else {
+                        setFormData({
+                          ...formData,
+                          classes: currentClasses.filter(id => id !== cls.id)
+                        });
+                      }
+                    }}
+                    className="rounded border-gray-300"
+                  />
+                  <label htmlFor={`class-${cls.id}`} className="text-sm">
                     {cls.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  </label>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
         <DialogFooter>

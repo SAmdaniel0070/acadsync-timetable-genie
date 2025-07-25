@@ -48,7 +48,8 @@ const Subjects = () => {
   const handleSubmit = async (data: Omit<Subject, "id">) => {
     try {
       if (currentSubject) {
-        const { error } = await supabase
+        // Update subject
+        const { error: subjectError } = await supabase
           .from('subjects')
           .update({
             name: data.name,
@@ -56,21 +57,60 @@ const Subjects = () => {
           })
           .eq('id', currentSubject.id);
         
-        if (error) throw error;
+        if (subjectError) throw subjectError;
+
+        // Delete existing class assignments
+        await supabase
+          .from('subject_class_assignments')
+          .delete()
+          .eq('subject_id', currentSubject.id);
+
+        // Insert new class assignments
+        if (data.classes && data.classes.length > 0) {
+          const assignments = data.classes.map(classId => ({
+            subject_id: currentSubject.id,
+            class_id: classId
+          }));
+          
+          const { error: assignmentError } = await supabase
+            .from('subject_class_assignments')
+            .insert(assignments);
+          
+          if (assignmentError) throw assignmentError;
+        }
+        
         await fetchData();
         toast({
           title: "Success",
           description: "Subject updated successfully.",
         });
       } else {
-        const { error } = await supabase
+        // Create new subject
+        const { data: newSubject, error: subjectError } = await supabase
           .from('subjects')
           .insert({
             name: data.name,
             code: data.code,
-          });
+          })
+          .select()
+          .single();
         
-        if (error) throw error;
+        if (subjectError) throw subjectError;
+
+        // Insert class assignments
+        if (data.classes && data.classes.length > 0) {
+          const assignments = data.classes.map(classId => ({
+            subject_id: newSubject.id,
+            class_id: classId
+          }));
+          
+          const { error: assignmentError } = await supabase
+            .from('subject_class_assignments')
+            .insert(assignments);
+          
+          if (assignmentError) throw assignmentError;
+        }
+        
         await fetchData();
         toast({
           title: "Success",
@@ -92,6 +132,13 @@ const Subjects = () => {
   const handleDelete = async () => {
     try {
       if (currentSubject) {
+        // Delete class assignments first
+        await supabase
+          .from('subject_class_assignments')
+          .delete()
+          .eq('subject_id', currentSubject.id);
+
+        // Delete the subject
         const { error } = await supabase
           .from('subjects')
           .delete()
