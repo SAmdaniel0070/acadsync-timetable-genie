@@ -68,21 +68,48 @@ export const TimetableService = {
 
   async getSubjects(): Promise<Subject[]> {
     try {
-      const { data, error } = await (supabase as any)
+      // First get all subjects
+      const { data: subjectsData, error: subjectsError } = await supabase
         .from('subjects')
-        .select(`
-          *,
-          subject_class_assignments(class_id)
-        `);
+        .select('*')
+        .order('name');
+
+      if (subjectsError) {
+        console.error('Error fetching subjects:', subjectsError);
+        return [];
+      }
+
+      // Then get all subject-class assignments
+      const { data: assignmentsData, error: assignmentsError } = await supabase
+        .from('subject_class_assignments')
+        .select('subject_id, class_id');
+
+      if (assignmentsError) {
+        console.error('Error fetching assignments:', assignmentsError);
+        return [];
+      }
+
+      console.log('Subjects data:', subjectsData);
+      console.log('Assignments data:', assignmentsData);
+
+      // Combine the data
+      const transformedData = (subjectsData || []).map((subject: any) => {
+        const subjectAssignments = (assignmentsData || []).filter(
+          (assignment: any) => assignment.subject_id === subject.id
+        );
+        
+        return {
+          ...subject,
+          classes: subjectAssignments.map((assignment: any) => assignment.class_id),
+          periodsPerWeek: 1 // Default value since it's not stored in database yet
+        };
+      });
+
+      console.log('Final transformed subjects:', transformedData);
       
-      if (error) throw error;
-      
-      return (data || []).map((subject: any) => ({
-        ...subject,
-        classes: subject.subject_class_assignments?.map((assignment: any) => assignment.class_id) || [],
-        periodsPerWeek: 1 // Default value since it's not stored in database yet
-      }));
-    } catch {
+      return transformedData;
+    } catch (error) {
+      console.error('Error in getSubjects:', error);
       return [];
     }
   },
