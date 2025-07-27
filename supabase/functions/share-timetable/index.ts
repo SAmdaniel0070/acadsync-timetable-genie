@@ -14,8 +14,15 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     const url = new URL(req.url);
-    const shareToken = url.searchParams.get('token');
-    const format = url.searchParams.get('format') || 'json'; // json, whatsapp, email
+    let shareToken = url.searchParams.get('token');
+    let format = url.searchParams.get('format') || 'json'; // json, whatsapp, email
+    
+    // If no token in URL params, try to get from request body
+    if (!shareToken && req.method === 'POST') {
+      const body = await req.json();
+      shareToken = body.shareToken;
+      format = body.format || 'json';
+    }
 
     if (!shareToken) {
       return new Response(JSON.stringify({ error: 'Share token required' }), {

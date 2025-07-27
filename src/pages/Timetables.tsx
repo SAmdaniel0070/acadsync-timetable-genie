@@ -87,25 +87,112 @@ const Timetables = () => {
     }
   };
 
-  const handleShareWhatsApp = () => {
-    toast({
-      title: "Feature Coming Soon",
-      description: "WhatsApp sharing will be available in the next update.",
-    });
+  const handleShareWhatsApp = async () => {
+    if (!timetable) {
+      toast({
+        title: "Error",
+        description: "No timetable available to share.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const shareToken = await TimetableService.generateShareToken(timetable.id);
+      const shareData = await TimetableService.shareTimetable(shareToken, 'whatsapp');
+      
+      // Open WhatsApp with the formatted message
+      window.open(shareData.shareUrl, '_blank');
+      
+      toast({
+        title: "Success",
+        description: "Timetable shared via WhatsApp",
+      });
+    } catch (error) {
+      console.error("Error sharing via WhatsApp:", error);
+      toast({
+        title: "Error",
+        description: "Failed to share timetable via WhatsApp.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleShareEmail = () => {
-    toast({
-      title: "Feature Coming Soon",
-      description: "Email sharing will be available in the next update.",
-    });
+  const handleShareEmail = async () => {
+    if (!timetable) {
+      toast({
+        title: "Error",
+        description: "No timetable available to share.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const shareToken = await TimetableService.generateShareToken(timetable.id);
+      const emailData = await TimetableService.shareTimetable(shareToken, 'email');
+      
+      // Open email client with formatted content
+      window.location.href = emailData.mailtoUrl;
+      
+      toast({
+        title: "Success",
+        description: "Email client opened with timetable content",
+      });
+    } catch (error) {
+      console.error("Error sharing via email:", error);
+      toast({
+        title: "Error",
+        description: "Failed to share timetable via email.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDownload = () => {
-    toast({
-      title: "Feature Coming Soon",
-      description: "Timetable download will be available in the next update.",
-    });
+  const handleDownload = async () => {
+    if (!timetable) {
+      toast({
+        title: "Error",
+        description: "No timetable available to download.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const blob = await TimetableService.downloadTimetable(timetable.id, 'csv');
+      
+      // Create a temporary link to download the file
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `timetable-${timetable.name || 'export'}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Success",
+        description: "Timetable downloaded successfully",
+      });
+    } catch (error) {
+      console.error("Error downloading timetable:", error);
+      toast({
+        title: "Error",
+        description: "Failed to download timetable.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleUpdateLesson = async (lesson: Lesson) => {

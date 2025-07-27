@@ -261,5 +261,62 @@ export const TimetableService = {
       .eq('id', timetable.id);
     
     if (error) throw error;
+  },
+
+  async downloadTimetable(timetableId: string, format: 'csv' | 'json' | 'html' = 'csv'): Promise<Blob> {
+    try {
+      // Use the edge function URL pattern for Supabase
+      const projectUrl = import.meta.env.VITE_SUPABASE_URL || '';
+      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+      
+      const response = await fetch(`${projectUrl}/functions/v1/download-timetable?id=${timetableId}&format=${format}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${anonKey}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Download failed: ${response.statusText}`);
+      }
+
+      return response.blob();
+    } catch (error) {
+      console.error('Error downloading timetable:', error);
+      throw error;
+    }
+  },
+
+  async shareTimetable(shareToken: string, format: 'whatsapp' | 'email' = 'whatsapp'): Promise<any> {
+    try {
+      const { data, error } = await supabase.functions.invoke('share-timetable', {
+        body: { shareToken, format }
+      });
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error sharing timetable:', error);
+      throw error;
+    }
+  },
+
+  async generateShareToken(timetableId: string): Promise<string> {
+    try {
+      // Generate a unique share token
+      const shareToken = crypto.randomUUID();
+      
+      // Update the timetable with the share token using any cast for now
+      const { error } = await (supabase as any)
+        .from('timetables')
+        .update({ share_token: shareToken })
+        .eq('id', timetableId);
+
+      if (error) throw error;
+      return shareToken;
+    } catch (error) {
+      console.error('Error generating share token:', error);
+      throw error;
+    }
   }
 };
