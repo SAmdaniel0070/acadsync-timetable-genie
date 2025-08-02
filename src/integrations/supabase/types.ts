@@ -432,25 +432,34 @@ export type Database = {
       }
       timetables: {
         Row: {
+          academic_year: string | null
           created_at: string
           id: string
           name: string
+          share_token: string | null
           timing_id: string
           updated_at: string
+          year_id: string | null
         }
         Insert: {
+          academic_year?: string | null
           created_at?: string
           id?: string
           name: string
+          share_token?: string | null
           timing_id: string
           updated_at?: string
+          year_id?: string | null
         }
         Update: {
+          academic_year?: string | null
           created_at?: string
           id?: string
           name?: string
+          share_token?: string | null
           timing_id?: string
           updated_at?: string
+          year_id?: string | null
         }
         Relationships: [
           {
@@ -458,6 +467,13 @@ export type Database = {
             columns: ["timing_id"]
             isOneToOne: false
             referencedRelation: "timings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timetables_year_id_fkey"
+            columns: ["year_id"]
+            isOneToOne: false
+            referencedRelation: "years"
             referencedColumns: ["id"]
           },
         ]
