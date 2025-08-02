@@ -203,7 +203,7 @@ class TimetableGenerator {
 
     const timetableId = timetableData.id;
     const lessons: any[] = [];
-    const workingDays = [0, 1, 2, 3, 4]; // Monday to Friday
+    const workingDays = [0, 1, 2, 3, 4, 5]; // Monday to Saturday
 
     // Generate lessons for each class
     for (const cls of classes) {

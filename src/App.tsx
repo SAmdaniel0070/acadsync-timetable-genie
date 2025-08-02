@@ -16,6 +16,7 @@ import Teachers from "./pages/Teachers";
 import Subjects from "./pages/Subjects";
 import Timings from "./pages/Timings";
 import Share from "./pages/Share";
+import DataUpload from "./pages/DataUpload";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +37,7 @@ const App = () => (
             <Route path="/subjects" element={<Subjects />} />
             <Route path="/timings" element={<Timings />} />
             <Route path="/share" element={<Share />} />
+            <Route path="/upload" element={<DataUpload />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Layout>

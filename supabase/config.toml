@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.download-timetable]
 verify_jwt = false
+
+[functions.import-data]
+verify_jwt = false

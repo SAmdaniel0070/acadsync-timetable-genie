@@ -98,7 +98,7 @@ exports.generateTimetable = async ({
   teachers,
   timeSlots,
   classrooms,
-  workingDays = [0, 1, 2, 3, 4] // Default: Monday to Friday
+  workingDays = [0, 1, 2, 3, 4, 5] // Default: Monday to Saturday
 }) => {
   if (!classes || !subjects || !teachers || !timeSlots) {
     console.error("Missing required parameters for timetable generation");

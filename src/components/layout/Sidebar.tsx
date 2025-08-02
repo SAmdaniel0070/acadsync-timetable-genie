@@ -13,6 +13,7 @@ import {
   Building,
   Clock,
   Share,
+  Upload,
 } from "lucide-react";
 
 type NavItem = {
@@ -61,6 +62,11 @@ const mainNavItems: NavItem[] = [
     title: "Share",
     icon: Share,
     href: "/share",
+  },
+  {
+    title: "Data Upload",
+    icon: Upload,
+    href: "/upload",
   },
 ];
 
