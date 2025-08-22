@@ -205,6 +205,87 @@ const DataUpload = () => {
 
         <Card>
           <CardHeader>
+            <CardTitle>Sample Data & Testing</CardTitle>
+            <CardDescription>
+              Use these sample CSV formats to test the upload functionality
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <h4 className="font-semibold mb-2">Quick Test - Classes CSV:</h4>
+                <div className="text-xs bg-gray-50 p-3 rounded font-mono">
+                  Class Name,Year,Section,Student Count<br/>
+                  10-A,Grade 10,A,30<br/>
+                  10-B,Grade 10,B,32<br/>
+                  11-A,Grade 11,A,28<br/>
+                  12-A,Grade 12,A,25
+                </div>
+                <p className="text-xs text-gray-600 mt-2">Copy this into a .csv file to test class upload</p>
+              </div>
+              <div>
+                <h4 className="font-semibold mb-2">Quick Test - Subjects CSV:</h4>
+                <div className="text-xs bg-gray-50 p-3 rounded font-mono">
+                  Subject Name,Subject Code,Periods per Week,Is Lab<br/>
+                  Mathematics,MATH001,5,No<br/>
+                  Physics,PHY001,4,No<br/>
+                  Chemistry Lab,CHEM001,2,Yes<br/>
+                  English,ENG001,4,No
+                </div>
+                <p className="text-xs text-gray-600 mt-2">Copy this into a .csv file to test subject upload</p>
+              </div>
+              <div>
+                <h4 className="font-semibold mb-2">Quick Test - Teachers CSV:</h4>
+                <div className="text-xs bg-gray-50 p-3 rounded font-mono">
+                  Teacher Name,Email,Specialization,Phone<br/>
+                  John Smith,john@school.edu,Mathematics,555-0101<br/>
+                  Sarah Johnson,sarah@school.edu,Physics,555-0102<br/>
+                  Mike Wilson,mike@school.edu,Chemistry,555-0103<br/>
+                  Lisa Brown,lisa@school.edu,English,555-0104
+                </div>
+                <p className="text-xs text-gray-600 mt-2">Copy this into a .csv file to test teacher upload</p>
+              </div>
+              <div>
+                <h4 className="font-semibold mb-2">Quick Test - Classrooms CSV:</h4>
+                <div className="text-xs bg-gray-50 p-3 rounded font-mono">
+                  Classroom Name,Capacity,Is Lab,Location<br/>
+                  Room 101,35,No,Building A<br/>
+                  Room 102,35,No,Building A<br/>
+                  Chemistry Lab,25,Yes,Building B<br/>
+                  Physics Lab,25,Yes,Building B
+                </div>
+                <p className="text-xs text-gray-600 mt-2">Copy this into a .csv file to test classroom upload</p>
+              </div>
+              <div>
+                <h4 className="font-semibold mb-2">Quick Test - Timings CSV:</h4>
+                <div className="text-xs bg-gray-50 p-3 rounded font-mono">
+                  Period Name,Start Time,End Time,Is Break<br/>
+                  Period 1,09:00,09:45,No<br/>
+                  Period 2,09:45,10:30,No<br/>
+                  Break,10:30,10:45,Yes<br/>
+                  Period 3,10:45,11:30,No<br/>
+                  Period 4,11:30,12:15,No
+                </div>
+                <p className="text-xs text-gray-600 mt-2">Copy this into a .csv file to test timing upload</p>
+              </div>
+              <div>
+                <h4 className="font-semibold mb-2">Complete Flow:</h4>
+                <ol className="text-sm space-y-1 text-gray-600">
+                  <li>1. Upload Classes first</li>
+                  <li>2. Upload Subjects</li>
+                  <li>3. Upload Teachers</li>
+                  <li>4. Upload Classrooms</li>
+                  <li>5. Upload Timings</li>
+                  <li>6. Go to Timetables page</li>
+                  <li>7. Click "Generate Timetable"</li>
+                </ol>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle>Import Guidelines</CardTitle>
             <CardDescription>
               Please follow these guidelines for successful data import

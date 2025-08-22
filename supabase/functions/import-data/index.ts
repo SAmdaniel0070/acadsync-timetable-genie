@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import * as XLSX from "https://esm.sh/xlsx@0.18.5";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,39 +17,130 @@ interface ImportRequest {
 // Parser for different file types
 class DataParser {
   
-  // Parse CSV content
+  // Parse CSV content with better handling
   static parseCSV(content: string): Record<string, any>[] {
     const lines = content.trim().split('\n');
     if (lines.length < 2) return [];
     
-    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    // Handle quoted CSV fields properly
+    const parseCSVLine = (line: string): string[] => {
+      const result: string[] = [];
+      let current = '';
+      let inQuotes = false;
+      
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          result.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      result.push(current.trim());
+      return result;
+    };
+    
+    const headers = parseCSVLine(lines[0]).map(h => h.replace(/"/g, ''));
     const data: Record<string, any>[] = [];
     
     for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
-      if (values.length === headers.length) {
+      const values = parseCSVLine(lines[i]).map(v => v.replace(/"/g, ''));
+      if (values.length >= headers.length) {
         const row: Record<string, any> = {};
         headers.forEach((header, index) => {
-          row[header] = values[index];
+          row[header] = values[index] || '';
         });
-        data.push(row);
+        if (Object.values(row).some(v => v)) { // Only add rows with some data
+          data.push(row);
+        }
       }
     }
     
     return data;
   }
   
-  // Simple text extraction from PDF (basic implementation)
-  static extractTextFromPDF(content: string): Record<string, any>[] {
-    // This is a simplified approach - in production, use a proper PDF parser
-    console.log('PDF parsing is simplified - using basic text extraction');
-    return [];
+  // Parse Excel files using XLSX library
+  static parseExcel(fileBuffer: Uint8Array): Record<string, any>[] {
+    try {
+      console.log('Parsing Excel file with XLSX library');
+      const workbook = XLSX.read(fileBuffer, { type: 'array' });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      
+      // Convert to JSON
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      
+      if (jsonData.length < 2) return [];
+      
+      const headers = jsonData[0] as string[];
+      const data: Record<string, any>[] = [];
+      
+      for (let i = 1; i < jsonData.length; i++) {
+        const row: Record<string, any> = {};
+        const values = jsonData[i] as any[];
+        
+        headers.forEach((header, index) => {
+          row[header] = values[index] || '';
+        });
+        
+        if (Object.values(row).some(v => v)) { // Only add rows with some data
+          data.push(row);
+        }
+      }
+      
+      console.log(`Parsed ${data.length} rows from Excel file`);
+      return data;
+    } catch (error) {
+      console.error('Error parsing Excel file:', error);
+      throw new Error('Failed to parse Excel file. Please ensure it\'s a valid .xlsx or .xls file.');
+    }
   }
   
-  // Parse Excel files (simplified - would need proper XLSX parser in production)
-  static parseExcel(content: string): Record<string, any>[] {
-    console.log('Excel parsing requires proper XLSX library - converting to CSV approach');
-    return [];
+  // Extract tabular data from PDF (basic text parsing)
+  static extractTextFromPDF(content: string): Record<string, any>[] {
+    console.log('PDF parsing - attempting basic text extraction');
+    
+    try {
+      // Basic approach: look for tabular patterns in text
+      const lines = content.split('\n').filter(line => line.trim());
+      
+      if (lines.length < 2) {
+        throw new Error('PDF does not contain enough tabular data. Please convert to CSV or Excel format.');
+      }
+      
+      // Try to identify if first line looks like headers
+      const potentialHeaders = lines[0].split(/\s{2,}|\t/).filter(h => h.trim());
+      
+      if (potentialHeaders.length < 2) {
+        throw new Error('Could not identify table structure in PDF. Please convert to CSV or Excel format.');
+      }
+      
+      const data: Record<string, any>[] = [];
+      
+      for (let i = 1; i < Math.min(lines.length, 100); i++) { // Limit to first 100 lines
+        const values = lines[i].split(/\s{2,}|\t/).filter(v => v.trim());
+        
+        if (values.length >= potentialHeaders.length) {
+          const row: Record<string, any> = {};
+          potentialHeaders.forEach((header, index) => {
+            row[header] = values[index] || '';
+          });
+          data.push(row);
+        }
+      }
+      
+      if (data.length === 0) {
+        throw new Error('No tabular data found in PDF. Please convert to CSV or Excel format for better results.');
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('PDF parsing error:', error);
+      throw new Error('PDF parsing failed. For best results, please convert your PDF to CSV or Excel format.');
+    }
   }
 }
 
@@ -330,7 +422,8 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('Import request for:', request.dataType, request.fileName);
 
     // Decode base64 file
-    const fileContent = atob(request.file);
+    const fileBuffer = Uint8Array.from(atob(request.file), c => c.charCodeAt(0));
+    const fileContent = new TextDecoder().decode(fileBuffer);
     
     // Parse file based on type
     let parsedData: Record<string, any>[] = [];
@@ -338,11 +431,11 @@ const handler = async (req: Request): Promise<Response> => {
     if (request.mimeType.includes('csv') || request.fileName.endsWith('.csv')) {
       parsedData = DataParser.parseCSV(fileContent);
     } else if (request.mimeType.includes('sheet') || request.fileName.endsWith('.xlsx') || request.fileName.endsWith('.xls')) {
-      parsedData = DataParser.parseExcel(fileContent);
+      parsedData = DataParser.parseExcel(fileBuffer);
     } else if (request.mimeType.includes('pdf') || request.fileName.endsWith('.pdf')) {
       parsedData = DataParser.extractTextFromPDF(fileContent);
     } else {
-      throw new Error('Unsupported file format');
+      throw new Error('Unsupported file format. Please use CSV, Excel (.xlsx/.xls), or PDF files.');
     }
 
     console.log(`Parsed ${parsedData.length} rows from ${request.fileName}`);

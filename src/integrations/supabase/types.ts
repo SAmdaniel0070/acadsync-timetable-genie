@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -89,24 +89,30 @@ export type Database = {
         Row: {
           capacity: number
           created_at: string
+          equipment: string | null
           id: string
           is_lab: boolean
+          location: string | null
           name: string
           updated_at: string
         }
         Insert: {
           capacity?: number
           created_at?: string
+          equipment?: string | null
           id?: string
           is_lab?: boolean
+          location?: string | null
           name: string
           updated_at?: string
         }
         Update: {
           capacity?: number
           created_at?: string
+          equipment?: string | null
           id?: string
           is_lab?: boolean
+          location?: string | null
           name?: string
           updated_at?: string
         }
@@ -307,21 +313,27 @@ export type Database = {
           code: string
           created_at: string
           id: string
+          is_lab: boolean
           name: string
+          periods_per_week: number
           updated_at: string
         }
         Insert: {
           code: string
           created_at?: string
           id?: string
+          is_lab?: boolean
           name: string
+          periods_per_week?: number
           updated_at?: string
         }
         Update: {
           code?: string
           created_at?: string
           id?: string
+          is_lab?: boolean
           name?: string
+          periods_per_week?: number
           updated_at?: string
         }
         Relationships: []
@@ -366,24 +378,30 @@ export type Database = {
         Row: {
           created_at: string
           email: string
+          experience: number | null
           id: string
           name: string
+          phone: string | null
           specialization: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           email: string
+          experience?: number | null
           id?: string
           name: string
+          phone?: string | null
           specialization?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           email?: string
+          experience?: number | null
           id?: string
           name?: string
+          phone?: string | null
           specialization?: string | null
           updated_at?: string
         }

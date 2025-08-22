@@ -101,7 +101,8 @@ export const TimetableService = {
         return {
           ...subject,
           classes: subjectAssignments.map((assignment: any) => assignment.class_id),
-          periodsPerWeek: 1 // Default value since it's not stored in database yet
+          periodsPerWeek: subject.periods_per_week || 1, // Use the database field
+          isLab: subject.is_lab || false
         };
       });
 
@@ -265,9 +266,9 @@ export const TimetableService = {
 
   async downloadTimetable(timetableId: string, format: 'csv' | 'json' | 'html' = 'csv'): Promise<Blob> {
     try {
-      // Use the edge function URL pattern for Supabase
-      const projectUrl = import.meta.env.VITE_SUPABASE_URL || '';
-      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+      // Use the hardcoded project URL pattern for Supabase
+      const projectUrl = 'https://zefputjjkytoacjdmijy.supabase.co';
+      const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InplZnB1dGpqa3l0b2FjamRtaWp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI5MDY4NDQsImV4cCI6MjA2ODQ4Mjg0NH0.MQpqCAxzfakJuEH_VACgwyYGurLF--LVT9B9hep1QhM';
       
       const response = await fetch(`${projectUrl}/functions/v1/download-timetable?id=${timetableId}&format=${format}`, {
         method: 'GET',
