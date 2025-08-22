@@ -71,6 +71,10 @@ const Timetables = () => {
       setLoading(true);
       const newTimetable = await TimetableService.generateTimetable();
       setTimetable(newTimetable);
+      
+      // Force refresh all the related data to ensure consistency
+      await fetchData();
+      
       toast({
         title: "Success",
         description: "Timetable generated successfully",
@@ -79,7 +83,7 @@ const Timetables = () => {
       console.error("Error generating timetable:", error);
       toast({
         title: "Error",
-        description: "Failed to generate timetable. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to generate timetable. Please try again.",
         variant: "destructive",
       });
     } finally {

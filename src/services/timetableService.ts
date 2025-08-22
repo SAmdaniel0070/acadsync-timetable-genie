@@ -197,7 +197,14 @@ export const TimetableService = {
     });
     
     if (error) throw error;
-    return data;
+    
+    // After generation, fetch the updated timetable with lessons
+    const updatedTimetable = await this.getTimetable();
+    if (!updatedTimetable) {
+      throw new Error('Failed to fetch generated timetable');
+    }
+    
+    return updatedTimetable;
   },
 
   async updateLesson(lesson: Lesson): Promise<void> {
