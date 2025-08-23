@@ -61,15 +61,30 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
 
   // Filter lessons based on view type
   const filteredLessons = React.useMemo(() => {
-    if (view === "teacher" && teacherId) {
-      return timetable.lessons.filter((lesson) => lesson.teacherId === teacherId);
-    } else if (view === "class" && classId) {
-      return timetable.lessons.filter((lesson) => lesson.classId === classId);
-    } else if (view === "classroom" && classroomId) {
-      return timetable.lessons.filter((lesson) => lesson.classroomId === classroomId);
+    if (!timetable || !timetable.lessons || timetable.lessons.length === 0) {
+      console.log('No lessons found in timetable:', timetable);
+      return [];
     }
+    
+    console.log('Filtering lessons for view:', view, 'Total lessons:', timetable.lessons.length);
+    console.log('Available lessons:', timetable.lessons);
+    
+    if (view === "teacher" && teacherId) {
+      const filtered = timetable.lessons.filter((lesson) => lesson.teacherId === teacherId);
+      console.log('Filtered teacher lessons:', filtered);
+      return filtered;
+    } else if (view === "class" && classId) {
+      const filtered = timetable.lessons.filter((lesson) => lesson.classId === classId);
+      console.log('Filtered class lessons:', filtered);
+      return filtered;
+    } else if (view === "classroom" && classroomId) {
+      const filtered = timetable.lessons.filter((lesson) => lesson.classroomId === classroomId);
+      console.log('Filtered classroom lessons:', filtered);
+      return filtered;
+    }
+    console.log('Returning all lessons for master view:', timetable.lessons);
     return timetable.lessons;
-  }, [timetable.lessons, view, teacherId, classId, classroomId]);
+  }, [timetable, view, teacherId, classId, classroomId]);
 
   // Filter out break slots for display
   const teachingTimeSlots = timeSlots.filter(slot => !slot.isBreak);

@@ -4,37 +4,47 @@ import { Timetable, Class, Teacher, Subject, TimeSlot, Lesson, Classroom } from 
 export const TimetableService = {
   async getTimetable(): Promise<Timetable | null> {
     try {
+      // Get the latest timetable with lessons
       const { data: timetableData, error: timetableError } = await (supabase as any)
         .from('timetables')
         .select('*')
+        .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
       
       if (timetableError) throw timetableError;
       if (!timetableData) return null;
 
+      console.log('Fetched timetable:', timetableData);
+
       // Get lessons for this timetable
       const { data: lessonsData, error: lessonsError } = await (supabase as any)
         .from('lessons')
         .select('*')
-        .eq('timetable_id', timetableData.id);
+        .eq('timetable_id', timetableData.id)
+        .order('day, time_slot_id');
       
       if (lessonsError) throw lessonsError;
 
       // Transform lessons to include compatibility fields
       const transformedLessons = (lessonsData || []).map((lesson: any) => ({
         ...lesson,
-        classId: lesson.class_id,
-        subjectId: lesson.subject_id,
-        teacherId: lesson.teacher_id,
-        classroomId: lesson.classroom_id,
-        timeSlotId: lesson.time_slot_id,
+        classId: lesson.class_id || lesson.classId,
+        subjectId: lesson.subject_id || lesson.subjectId,
+        teacherId: lesson.teacher_id || lesson.teacherId,
+        classroomId: lesson.classroom_id || lesson.classroomId,
+        timeSlotId: lesson.time_slot_id || lesson.timeSlotId,
       }));
 
-      return {
+      console.log('Fetched timetable lessons:', transformedLessons);
+
+      const finalTimetable = {
         ...timetableData,
         lessons: transformedLessons,
       };
+
+      console.log('Final timetable object:', finalTimetable);
+      return finalTimetable;
     } catch {
       return null;
     }
@@ -117,10 +127,23 @@ export const TimetableService = {
 
   async getTimeSlots(): Promise<TimeSlot[]> {
     try {
-      const { data, error } = await (supabase as any)
-        .from('time_slots')
-        .select('*')
-        .order('slot_order');
+      // Get the latest timetable's timing_id to fetch related time slots
+      const { data: timetableData } = await (supabase as any)
+        .from('timetables')
+        .select('timing_id')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      let query = (supabase as any).from('time_slots').select('*').order('slot_order');
+      
+      // If we have a timetable, filter by its timing_id
+      if (timetableData?.timing_id) {
+        query = query.eq('timing_id', timetableData.timing_id);
+        console.log('Filtering time slots by timing_id:', timetableData.timing_id);
+      }
+      
+      const { data, error } = await query;
       
       if (error) throw error;
       
@@ -133,8 +156,10 @@ export const TimetableService = {
         name: `${slot.start_time} - ${slot.end_time}`,
       }));
       
+      console.log('Fetched time slots:', transformedData);
       return transformedData;
-    } catch {
+    } catch (error) {
+      console.error('Error fetching time slots:', error);
       return [];
     }
   },
