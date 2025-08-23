@@ -17,6 +17,7 @@ interface ConflictCheckResult {
   teacherConflict: boolean;
   classConflict: boolean;
   classroomConflict: boolean;
+  backToBackConflict: boolean;
 }
 
 // Timetable generation algorithm
@@ -33,17 +34,32 @@ class TimetableGenerator {
     timeSlotId: string,
     teacherId: string,
     classId: string,
+    subjectId: string,
     classroomId: string | null,
-    existingLessons: any[]
+    existingLessons: any[],
+    timeSlots: any[]
   ): Promise<ConflictCheckResult> {
     const conflicts = existingLessons.filter(lesson => 
       lesson.day === day && lesson.time_slot_id === timeSlotId
     );
 
+    // Check for back-to-back lectures constraint
+    const currentSlotOrder = timeSlots.find(slot => slot.id === timeSlotId)?.slot_order || 0;
+    const hasBackToBackConflict = existingLessons.some(lesson => {
+      if (lesson.day === day && lesson.teacher_id === teacherId && 
+          lesson.class_id === classId && lesson.subject_id === subjectId) {
+        const lessonSlotOrder = timeSlots.find(slot => slot.id === lesson.time_slot_id)?.slot_order || 0;
+        // Check if it's immediately before or after current slot
+        return Math.abs(lessonSlotOrder - currentSlotOrder) === 1;
+      }
+      return false;
+    });
+
     return {
       teacherConflict: conflicts.some(lesson => lesson.teacher_id === teacherId),
       classConflict: conflicts.some(lesson => lesson.class_id === classId),
-      classroomConflict: classroomId ? conflicts.some(lesson => lesson.classroom_id === classroomId) : false
+      classroomConflict: classroomId ? conflicts.some(lesson => lesson.classroom_id === classroomId) : false,
+      backToBackConflict: hasBackToBackConflict
     };
   }
 
@@ -218,9 +234,9 @@ class TimetableGenerator {
 
       console.log(`Class ${cls.name} has ${classSubjects.length} subjects`);
 
-      // For each subject, schedule the required periods
+      // For each subject, schedule the required periods (always 3 per week)
       for (const subject of classSubjects) {
-        const periodsRequired = subject.periods_per_week || 1;
+        const periodsRequired = 3; // Fixed constraint: each subject must be taught 3 times per week
         let periodsScheduled = 0;
         let attempts = 0;
         const maxAttempts = 50;
@@ -259,11 +275,13 @@ class TimetableGenerator {
                   timeSlot.id,
                   teacher.id,
                   cls.id,
+                  subject.id,
                   null,
-                  lessons
+                  lessons,
+                  timeSlots
                 );
 
-                if (!conflicts.teacherConflict && !conflicts.classConflict) {
+                if (!conflicts.teacherConflict && !conflicts.classConflict && !conflicts.backToBackConflict) {
                   // Find suitable classroom
                   const classroom = this.findSuitableClassroom(
                     subject,
