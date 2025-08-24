@@ -17,6 +17,7 @@ import Subjects from "./pages/Subjects";
 import Timings from "./pages/Timings";
 import Share from "./pages/Share";
 import DataUpload from "./pages/DataUpload";
+import Settings from "./pages/Settings";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +39,7 @@ const App = () => (
             <Route path="/timings" element={<Timings />} />
             <Route path="/share" element={<Share />} />
             <Route path="/upload" element={<DataUpload />} />
+            <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Layout>
