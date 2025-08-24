@@ -1,14 +1,15 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Download, Edit, MailIcon, Share2 } from "lucide-react";
+import { Download, Edit, MailIcon, Share2, ChevronDown } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { EditMode } from "@/types";
 
 interface TimetableActionsProps {
   onGenerate: () => void;
-  onDownload: () => void;
+  onDownload: (format: string) => void;
   onShareEmail: () => void;
   onShareWhatsApp: () => void;
   editMode: EditMode;
@@ -44,10 +45,29 @@ export const TimetableActions: React.FC<TimetableActionsProps> = ({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" onClick={onDownload}>
-          <Download className="mr-2 h-4 w-4" />
-          Download
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline">
+              <Download className="mr-2 h-4 w-4" />
+              Download
+              <ChevronDown className="ml-1 h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem onClick={() => onDownload('pdf')}>
+              Download as PDF
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onDownload('excel')}>
+              Download as Excel
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onDownload('csv')}>
+              Download as CSV
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onDownload('html')}>
+              Download as HTML
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Button variant="outline" onClick={onShareEmail}>
           <MailIcon className="mr-2 h-4 w-4" />
           Email

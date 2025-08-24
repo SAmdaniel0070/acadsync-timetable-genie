@@ -159,7 +159,7 @@ const Timetables = () => {
     }
   };
 
-  const handleDownload = async () => {
+  const handleDownload = async (format: string = 'pdf') => {
     if (!timetable) {
       toast({
         title: "Error",
@@ -171,13 +171,24 @@ const Timetables = () => {
 
     try {
       setLoading(true);
-      const blob = await TimetableService.downloadTimetable(timetable.id, 'csv');
+      const blob = await TimetableService.downloadTimetable(timetable.id, format as any);
+      
+      // Determine file extension based on format
+      const extensions: { [key: string]: string } = {
+        pdf: 'pdf',
+        excel: 'xlsx',
+        csv: 'csv',
+        html: 'html',
+        json: 'json'
+      };
+      
+      const extension = extensions[format] || 'csv';
       
       // Create a temporary link to download the file
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `timetable-${timetable.name || 'export'}.csv`;
+      link.download = `timetable-${timetable.name || 'export'}.${extension}`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -185,7 +196,7 @@ const Timetables = () => {
       
       toast({
         title: "Success",
-        description: "Timetable downloaded successfully",
+        description: `Timetable downloaded as ${format.toUpperCase()}`,
       });
     } catch (error) {
       console.error("Error downloading timetable:", error);

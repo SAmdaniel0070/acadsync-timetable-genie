@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { jsPDF } from "https://esm.sh/jspdf@2.5.1";
+import * as XLSX from "https://esm.sh/xlsx@0.18.5";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,7 +17,7 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const url = new URL(req.url);
     const timetableId = url.searchParams.get('id');
-    const format = url.searchParams.get('format') || 'csv'; // csv, pdf, excel
+    const format = url.searchParams.get('format') || 'csv'; // csv, pdf, excel, json, html
 
     if (!timetableId) {
       return new Response(JSON.stringify({ error: 'Timetable ID required' }), {
@@ -83,6 +85,28 @@ const handler = async (req: Request): Promise<Response> => {
           headers: {
             'Content-Type': 'text/html',
             'Content-Disposition': `attachment; filename="${timetable.name.replace(/[^a-zA-Z0-9]/g, '_')}_timetable.html"`,
+            ...corsHeaders,
+          },
+        });
+
+      case 'pdf':
+        const pdfBuffer = generatePDF(timetable);
+        return new Response(pdfBuffer, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': `attachment; filename="${timetable.name.replace(/[^a-zA-Z0-9]/g, '_')}_timetable.pdf"`,
+            ...corsHeaders,
+          },
+        });
+
+      case 'excel':
+        const excelBuffer = generateExcel(timetable);
+        return new Response(excelBuffer, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition': `attachment; filename="${timetable.name.replace(/[^a-zA-Z0-9]/g, '_')}_timetable.xlsx"`,
             ...corsHeaders,
           },
         });
@@ -213,6 +237,140 @@ function groupLessonsByDay(lessons: any[]): { [key: number]: any[] } {
     acc[lesson.day].push(lesson);
     return acc;
   }, {});
+}
+
+function generatePDF(timetable: any): Uint8Array {
+  const doc = new jsPDF();
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  const lessonsByDay = groupLessonsByDay(timetable.lessons);
+  
+  // Add title
+  doc.setFontSize(20);
+  doc.text(timetable.name, 20, 20);
+  
+  doc.setFontSize(12);
+  doc.text(`Academic Year: ${timetable.academic_year}`, 20, 35);
+  doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 20, 45);
+  
+  let yPos = 65;
+  
+  days.forEach((day, dayIndex) => {
+    if (lessonsByDay[dayIndex] && lessonsByDay[dayIndex].length > 0) {
+      // Add day header
+      doc.setFontSize(14);
+      doc.setFont(undefined, 'bold');
+      doc.text(day, 20, yPos);
+      yPos += 10;
+      
+      // Add lessons for this day
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'normal');
+      
+      const sortedLessons = lessonsByDay[dayIndex].sort((a: any, b: any) => 
+        a.time_slots.slot_order - b.time_slots.slot_order
+      );
+      
+      sortedLessons.forEach((lesson: any) => {
+        const timeStr = `${lesson.time_slots.start_time} - ${lesson.time_slots.end_time}`;
+        const subjectStr = `${lesson.subjects.name} (${lesson.subjects.code})`;
+        const teacherStr = lesson.teachers.name;
+        const classStr = lesson.classes.name;
+        const roomStr = lesson.classrooms?.name || 'TBA';
+        
+        doc.text(`${timeStr}: ${subjectStr}`, 25, yPos);
+        yPos += 7;
+        doc.text(`Teacher: ${teacherStr} | Class: ${classStr} | Room: ${roomStr}`, 30, yPos);
+        yPos += 10;
+        
+        // Check if we need a new page
+        if (yPos > 270) {
+          doc.addPage();
+          yPos = 20;
+        }
+      });
+      
+      yPos += 10;
+    }
+  });
+  
+  return doc.output('arraybuffer');
+}
+
+function generateExcel(timetable: any): Uint8Array {
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  const lessonsByDay = groupLessonsByDay(timetable.lessons);
+  
+  // Create workbook
+  const wb = XLSX.utils.book_new();
+  
+  // Create main sheet with all lessons
+  const worksheetData: any[][] = [
+    ['Day', 'Time', 'Subject', 'Code', 'Teacher', 'Class', 'Classroom']
+  ];
+  
+  days.forEach((day, dayIndex) => {
+    if (lessonsByDay[dayIndex]) {
+      lessonsByDay[dayIndex]
+        .sort((a: any, b: any) => a.time_slots.slot_order - b.time_slots.slot_order)
+        .forEach((lesson: any) => {
+          worksheetData.push([
+            day,
+            `${lesson.time_slots.start_time} - ${lesson.time_slots.end_time}`,
+            lesson.subjects.name,
+            lesson.subjects.code,
+            lesson.teachers.name,
+            lesson.classes.name,
+            lesson.classrooms?.name || 'TBA'
+          ]);
+        });
+    }
+  });
+  
+  const ws = XLSX.utils.aoa_to_sheet(worksheetData);
+  
+  // Auto-resize columns
+  const colWidths = worksheetData[0].map((_, colIndex) => {
+    return Math.max(
+      ...worksheetData.map(row => String(row[colIndex] || '').length)
+    ) + 2;
+  });
+  ws['!cols'] = colWidths.map(width => ({ width }));
+  
+  XLSX.utils.book_append_sheet(wb, ws, 'Timetable');
+  
+  // Create individual day sheets
+  days.forEach((day, dayIndex) => {
+    if (lessonsByDay[dayIndex] && lessonsByDay[dayIndex].length > 0) {
+      const dayData: any[][] = [
+        ['Time', 'Subject', 'Code', 'Teacher', 'Class', 'Classroom']
+      ];
+      
+      lessonsByDay[dayIndex]
+        .sort((a: any, b: any) => a.time_slots.slot_order - b.time_slots.slot_order)
+        .forEach((lesson: any) => {
+          dayData.push([
+            `${lesson.time_slots.start_time} - ${lesson.time_slots.end_time}`,
+            lesson.subjects.name,
+            lesson.subjects.code,
+            lesson.teachers.name,
+            lesson.classes.name,
+            lesson.classrooms?.name || 'TBA'
+          ]);
+        });
+      
+      const dayWs = XLSX.utils.aoa_to_sheet(dayData);
+      const dayColWidths = dayData[0].map((_, colIndex) => {
+        return Math.max(
+          ...dayData.map(row => String(row[colIndex] || '').length)
+        ) + 2;
+      });
+      dayWs['!cols'] = dayColWidths.map(width => ({ width }));
+      
+      XLSX.utils.book_append_sheet(wb, dayWs, day);
+    }
+  });
+  
+  return XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
 }
 
 serve(handler);

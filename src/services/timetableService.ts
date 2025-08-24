@@ -296,7 +296,7 @@ export const TimetableService = {
     if (error) throw error;
   },
 
-  async downloadTimetable(timetableId: string, format: 'csv' | 'json' | 'html' = 'csv'): Promise<Blob> {
+  async downloadTimetable(timetableId: string, format: 'csv' | 'json' | 'html' | 'pdf' | 'excel' = 'csv'): Promise<Blob> {
     try {
       // Use the hardcoded project URL pattern for Supabase
       const projectUrl = 'https://zefputjjkytoacjdmijy.supabase.co';
