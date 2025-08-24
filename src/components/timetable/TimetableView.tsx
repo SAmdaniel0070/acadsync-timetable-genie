@@ -103,6 +103,10 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
     return subjects.find((s) => s.id === subjectId)?.name || "Unknown Subject";
   };
 
+  const isSubjectLab = (subjectId: string) => {
+    return subjects.find((s) => s.id === subjectId)?.isLab || false;
+  };
+
   const getClassroomName = (classroomId?: string) => {
     if (!classroomId) return "No Room";
     return classrooms.find((c) => c.id === classroomId)?.name || "Unknown Room";
@@ -213,7 +217,14 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
                   )}
                 >
                   <div className="font-medium">{getClassName(lesson.classId)}</div>
-                  <div>{getSubjectName(lesson.subjectId)}</div>
+                  <div>
+                    {getSubjectName(lesson.subjectId)}
+                    {isSubjectLab(lesson.subjectId) && (
+                      <span className="ml-1 px-1 py-0.5 bg-orange-100 text-orange-700 text-xs rounded">
+                        Lab
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs text-gray-500">
                     {getTeacherName(lesson.teacherId)}
                   </div>
@@ -266,7 +277,14 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
                 getSubjectColor(lesson.subjectId)
               )}
             >
-              <div className="font-medium">{getSubjectName(lesson.subjectId)}</div>
+              <div className="font-medium">
+                {getSubjectName(lesson.subjectId)}
+                {isSubjectLab(lesson.subjectId) && (
+                  <span className="ml-1 px-1 py-0.5 bg-orange-100 text-orange-700 text-xs rounded">
+                    Lab
+                  </span>
+                )}
+              </div>
               {view !== "class" && (
                 <div className="text-xs">{getClassName(lesson.classId)}</div>
               )}
