@@ -164,6 +164,55 @@ class TimetableGenerator {
     return availableClassrooms.sort((a, b) => a.capacity - b.capacity)[0];
   }
 
+  // Find preferred time slots (adjacent to existing lessons to avoid gaps)
+  findPreferredTimeSlots(
+    day: number,
+    classId: string,
+    timeSlots: any[],
+    existingLessons: any[]
+  ): any[] {
+    // Get existing lessons for this class on this day
+    const classLessonsOnDay = existingLessons.filter(
+      lesson => lesson.day === day && lesson.class_id === classId
+    );
+
+    if (classLessonsOnDay.length === 0) {
+      // No existing lessons, prefer early time slots
+      return timeSlots.slice().sort((a, b) => a.slot_order - b.slot_order);
+    }
+
+    // Find time slots adjacent to existing lessons
+    const occupiedSlotOrders = classLessonsOnDay.map(lesson => {
+      const slot = timeSlots.find(ts => ts.id === lesson.time_slot_id);
+      return slot ? slot.slot_order : -1;
+    }).filter(order => order !== -1);
+
+    const adjacentSlots: any[] = [];
+    const availableSlots: any[] = [];
+
+    timeSlots.forEach(timeSlot => {
+      const isOccupied = classLessonsOnDay.some(lesson => lesson.time_slot_id === timeSlot.id);
+      if (isOccupied) return;
+
+      // Check if this slot is adjacent to an occupied slot
+      const isAdjacent = occupiedSlotOrders.some(occupiedOrder => 
+        Math.abs(timeSlot.slot_order - occupiedOrder) === 1
+      );
+
+      if (isAdjacent) {
+        adjacentSlots.push(timeSlot);
+      } else {
+        availableSlots.push(timeSlot);
+      }
+    });
+
+    // Sort adjacent slots by order, then add other available slots
+    adjacentSlots.sort((a, b) => a.slot_order - b.slot_order);
+    availableSlots.sort((a, b) => a.slot_order - b.slot_order);
+
+    return [...adjacentSlots, ...availableSlots];
+  }
+
   // Shuffle array for randomization
   shuffleArray<T>(array: T[]): T[] {
     const shuffled = [...array];
@@ -264,9 +313,8 @@ class TimetableGenerator {
         while (periodsScheduled < periodsRequired && attempts < maxAttempts) {
           attempts++;
 
-          // Try random days and time slots
+          // Try days in order, prioritizing consecutive time slots
           const shuffledDays = this.shuffleArray(workingDays);
-          const shuffledTimeSlots = this.shuffleArray(timeSlots);
           const shuffledTeachers = this.shuffleArray(eligibleTeachers);
 
           let lessonScheduled = false;
@@ -274,7 +322,10 @@ class TimetableGenerator {
           for (const day of shuffledDays) {
             if (lessonScheduled) break;
 
-            for (const timeSlot of shuffledTimeSlots) {
+            // Get preferred time slots (adjacent to existing lessons to avoid gaps)
+            const preferredTimeSlots = this.findPreferredTimeSlots(day, cls.id, timeSlots, lessons);
+
+            for (const timeSlot of preferredTimeSlots) {
               if (lessonScheduled) break;
 
               for (const teacher of shuffledTeachers) {
