@@ -221,7 +221,7 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
                     {getSubjectName(lesson.subjectId)}
                     {isSubjectLab(lesson.subjectId) && (
                       <span className="ml-1 px-1 py-0.5 bg-orange-100 text-orange-700 text-xs rounded">
-                        Lab
+                        Practical
                       </span>
                     )}
                   </div>
@@ -281,7 +281,7 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
                 {getSubjectName(lesson.subjectId)}
                 {isSubjectLab(lesson.subjectId) && (
                   <span className="ml-1 px-1 py-0.5 bg-orange-100 text-orange-700 text-xs rounded">
-                    Lab
+                    Practical
                   </span>
                 )}
               </div>
