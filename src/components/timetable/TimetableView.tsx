@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { Class, Teacher, Subject, TimeSlot, Lesson, Timetable, EditMode, Classroom } from "@/types";
 import { cn } from "@/lib/utils";
 import { TimetableEditDialog } from "./TimetableEditDialog";
+import { ClassColorLegend, getClassColorMap } from "./ClassColorLegend";
 import { Edit, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TimetableService } from "@/services/timetableService";
@@ -112,22 +113,12 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
     return classrooms.find((c) => c.id === classroomId)?.name || "Unknown Room";
   };
 
-  // Helper to get the color for a subject (for visual distinction)
-  const getSubjectColor = (subjectId: string) => {
-    // Generate a consistent color based on the subject ID
-    const colorIndex = subjects.findIndex((s) => s.id === subjectId);
-    const colors = [
-      "bg-blue-100 border-blue-200",
-      "bg-green-100 border-green-200",
-      "bg-yellow-100 border-yellow-200",
-      "bg-purple-100 border-purple-200",
-      "bg-pink-100 border-pink-200",
-      "bg-indigo-100 border-indigo-200",
-      "bg-red-100 border-red-200",
-      "bg-orange-100 border-orange-200",
-    ];
-    
-    return colors[colorIndex % colors.length];
+  // Get class color mapping
+  const classColorMap = React.useMemo(() => getClassColorMap(classes), [classes]);
+
+  // Helper to get the color for a class (for visual distinction)
+  const getClassColor = (classId: string) => {
+    return classColorMap[classId]?.colorClass || "bg-gray-100 border-gray-200";
   };
 
   // Find a lesson for a specific day and time slot
@@ -211,10 +202,10 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
               {lessonsInThisSlot.map((lesson) => (
                 <div
                   key={lesson.id}
-                  className={cn(
-                    "p-1 border rounded text-xs relative group",
-                    getSubjectColor(lesson.subjectId)
-                  )}
+                   className={cn(
+                     "p-1 border rounded text-xs relative group",
+                     getClassColor(lesson.classId)
+                   )}
                 >
                   <div className="font-medium">{getClassName(lesson.classId)}</div>
                   <div>
@@ -273,9 +264,9 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
           {lesson ? (
             <div
               className={cn(
-                "h-full p-2 flex flex-col group",
-                getSubjectColor(lesson.subjectId)
-              )}
+                 "h-full p-2 flex flex-col group",
+                 getClassColor(lesson.classId)
+               )}
             >
               <div className="font-medium">
                 {getSubjectName(lesson.subjectId)}
@@ -329,6 +320,9 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
 
   return (
     <>
+      {/* Show color legend only for master view */}
+      {view === "master" && <ClassColorLegend classes={classes} />}
+      
       <div className="bg-white rounded-md shadow overflow-auto">
         <div className="min-w-[768px]">
           <table className="w-full border-collapse">
