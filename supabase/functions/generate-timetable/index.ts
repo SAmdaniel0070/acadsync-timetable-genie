@@ -18,6 +18,7 @@ interface ConflictCheckResult {
   classConflict: boolean;
   classroomConflict: boolean;
   backToBackConflict: boolean;
+  teacherDailyLimitExceeded: boolean;
 }
 
 // Timetable generation algorithm
@@ -55,11 +56,18 @@ class TimetableGenerator {
       return false;
     });
 
+    // Check teacher's daily class limit (max 4 classes per day)
+    const teacherDailyLessons = existingLessons.filter(lesson => 
+      lesson.day === day && lesson.teacher_id === teacherId
+    ).length;
+    const teacherDailyLimitExceeded = teacherDailyLessons >= 4;
+
     return {
       teacherConflict: conflicts.some(lesson => lesson.teacher_id === teacherId),
       classConflict: conflicts.some(lesson => lesson.class_id === classId),
       classroomConflict: classroomId ? conflicts.some(lesson => lesson.classroom_id === classroomId) : false,
-      backToBackConflict: hasBackToBackConflict
+      backToBackConflict: hasBackToBackConflict,
+      teacherDailyLimitExceeded
     };
   }
 
@@ -281,7 +289,7 @@ class TimetableGenerator {
                   timeSlots
                 );
 
-                if (!conflicts.teacherConflict && !conflicts.classConflict && !conflicts.backToBackConflict) {
+                if (!conflicts.teacherConflict && !conflicts.classConflict && !conflicts.backToBackConflict && !conflicts.teacherDailyLimitExceeded) {
                   // Find suitable classroom
                   const classroom = this.findSuitableClassroom(
                     subject,
