@@ -314,6 +314,7 @@ export type Database = {
           created_at: string
           id: string
           is_lab: boolean
+          lab_duration_hours: number | null
           name: string
           periods_per_week: number
           updated_at: string
@@ -323,6 +324,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_lab?: boolean
+          lab_duration_hours?: number | null
           name: string
           periods_per_week?: number
           updated_at?: string
@@ -332,6 +334,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_lab?: boolean
+          lab_duration_hours?: number | null
           name?: string
           periods_per_week?: number
           updated_at?: string
@@ -447,6 +450,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      timetable_drafts: {
+        Row: {
+          academic_year: string | null
+          created_at: string
+          draft_data: Json
+          id: string
+          name: string
+          timing_id: string
+          updated_at: string
+          year_id: string | null
+        }
+        Insert: {
+          academic_year?: string | null
+          created_at?: string
+          draft_data: Json
+          id?: string
+          name: string
+          timing_id: string
+          updated_at?: string
+          year_id?: string | null
+        }
+        Update: {
+          academic_year?: string | null
+          created_at?: string
+          draft_data?: Json
+          id?: string
+          name?: string
+          timing_id?: string
+          updated_at?: string
+          year_id?: string | null
+        }
+        Relationships: []
       }
       timetables: {
         Row: {
