@@ -291,88 +291,144 @@ class TimetableGenerator {
 
       console.log(`Class ${cls.name} has ${classSubjects.length} subjects`);
 
-      // For each subject, schedule the required periods (always 3 per week)
-      for (const subject of classSubjects) {
-        const periodsRequired = 3; // Fixed constraint: each subject must be taught 3 times per week
-        let periodsScheduled = 0;
-        let attempts = 0;
-        const maxAttempts = 50;
+        // For each subject, schedule the required periods
+        for (const subject of classSubjects) {
+          const periodsRequired = 3; // Fixed constraint: each subject must be taught 3 times per week
+          let periodsScheduled = 0;
+          let attempts = 0;
+          const maxAttempts = 50;
 
-        // Get teachers who can teach this subject
-        const eligibleTeachers = teachers.filter(teacher =>
-          teacherSubjects.some(ts => 
-            ts.teacher_id === teacher.id && ts.subject_id === subject.id
-          )
-        );
+          // Get lab duration (1 or 2 hours)
+          const labDuration = (subject.is_lab && subject.lab_duration_hours) ? subject.lab_duration_hours : 1;
+          const isMultiHourLab = subject.is_lab && labDuration === 2;
 
-        if (eligibleTeachers.length === 0) {
-          console.warn(`No teachers found for subject ${subject.name} in class ${cls.name}`);
-          continue;
-        }
+          // Get teachers who can teach this subject
+          const eligibleTeachers = teachers.filter(teacher =>
+            teacherSubjects.some(ts => 
+              ts.teacher_id === teacher.id && ts.subject_id === subject.id
+            )
+          );
 
-        while (periodsScheduled < periodsRequired && attempts < maxAttempts) {
-          attempts++;
+          if (eligibleTeachers.length === 0) {
+            console.warn(`No teachers found for subject ${subject.name} in class ${cls.name}`);
+            continue;
+          }
 
-          // Try days in order, prioritizing consecutive time slots
-          const shuffledDays = this.shuffleArray(workingDays);
-          const shuffledTeachers = this.shuffleArray(eligibleTeachers);
+          while (periodsScheduled < periodsRequired && attempts < maxAttempts) {
+            attempts++;
 
-          let lessonScheduled = false;
+            // Try days in order, prioritizing consecutive time slots
+            const shuffledDays = this.shuffleArray(workingDays);
+            const shuffledTeachers = this.shuffleArray(eligibleTeachers);
 
-          for (const day of shuffledDays) {
-            if (lessonScheduled) break;
+            let lessonScheduled = false;
 
-            // Get preferred time slots (adjacent to existing lessons to avoid gaps)
-            const preferredTimeSlots = this.findPreferredTimeSlots(day, cls.id, timeSlots, lessons);
-
-            for (const timeSlot of preferredTimeSlots) {
+            for (const day of shuffledDays) {
               if (lessonScheduled) break;
 
-              for (const teacher of shuffledTeachers) {
-                const conflicts = await this.checkConflicts(
-                  day,
-                  timeSlot.id,
-                  teacher.id,
-                  cls.id,
-                  subject.id,
-                  null,
-                  lessons,
-                  timeSlots
-                );
+              // Get preferred time slots (adjacent to existing lessons to avoid gaps)
+              const preferredTimeSlots = this.findPreferredTimeSlots(day, cls.id, timeSlots, lessons);
 
-                if (!conflicts.teacherConflict && !conflicts.classConflict && !conflicts.backToBackConflict && !conflicts.teacherDailyLimitExceeded) {
-                  // Find suitable classroom
-                  const classroom = this.findSuitableClassroom(
-                    subject,
-                    cls.id,
-                    classrooms,
-                    classroomAssignments,
-                    labSchedules,
-                    day,
-                    timeSlot.id,
-                    lessons
-                  );
+              for (let i = 0; i < preferredTimeSlots.length; i++) {
+                if (lessonScheduled) break;
 
-                  // Create lesson
-                  const newLesson = {
-                    timetable_id: timetableId,
-                    day: day,
-                    time_slot_id: timeSlot.id,
-                    class_id: cls.id,
-                    subject_id: subject.id,
-                    teacher_id: teacher.id,
-                    classroom_id: classroom?.id || null
-                  };
+                const timeSlot = preferredTimeSlots[i];
 
-                  lessons.push(newLesson);
-                  periodsScheduled++;
-                  lessonScheduled = true;
-                  break;
+                // For 2-hour labs, check if next slot is available
+                let consecutiveSlots = [timeSlot];
+                if (isMultiHourLab && i < preferredTimeSlots.length - 1) {
+                  const nextSlot = preferredTimeSlots[i + 1];
+                  // Check if next slot is consecutive (next slot_order)
+                  if (nextSlot && nextSlot.slot_order === timeSlot.slot_order + 1) {
+                    consecutiveSlots.push(nextSlot);
+                  } else {
+                    // Can't find consecutive slot, skip this slot for 2-hour labs
+                    continue;
+                  }
+                }
+
+                for (const teacher of shuffledTeachers) {
+                  // Check conflicts for all required slots
+                  let allSlotsAvailable = true;
+                  
+                  for (const slot of consecutiveSlots) {
+                    const conflicts = await this.checkConflicts(
+                      day,
+                      slot.id,
+                      teacher.id,
+                      cls.id,
+                      subject.id,
+                      null,
+                      lessons,
+                      timeSlots
+                    );
+
+                    if (conflicts.teacherConflict || conflicts.classConflict || 
+                        conflicts.backToBackConflict || conflicts.teacherDailyLimitExceeded) {
+                      allSlotsAvailable = false;
+                      break;
+                    }
+                  }
+
+                  if (allSlotsAvailable) {
+                    // Find suitable classroom for all slots
+                    const classroom = this.findSuitableClassroom(
+                      subject,
+                      cls.id,
+                      classrooms,
+                      classroomAssignments,
+                      labSchedules,
+                      day,
+                      timeSlot.id,
+                      lessons
+                    );
+
+                    // Check classroom availability for all consecutive slots
+                    let classroomAvailable = true;
+                    if (classroom && consecutiveSlots.length > 1) {
+                      for (const slot of consecutiveSlots) {
+                        const classroomConflict = lessons.some(lesson => 
+                          lesson.day === day && 
+                          lesson.time_slot_id === slot.id && 
+                          lesson.classroom_id === classroom.id
+                        );
+                        if (classroomConflict) {
+                          classroomAvailable = false;
+                          break;
+                        }
+                      }
+                    }
+
+                    if (classroomAvailable) {
+                      // Create lessons for all consecutive slots
+                      for (const slot of consecutiveSlots) {
+                        const newLesson = {
+                          timetable_id: timetableId,
+                          day: day,
+                          time_slot_id: slot.id,
+                          class_id: cls.id,
+                          subject_id: subject.id,
+                          teacher_id: teacher.id,
+                          classroom_id: classroom?.id || null
+                        };
+
+                        lessons.push(newLesson);
+                      }
+                      
+                      periodsScheduled++;
+                      lessonScheduled = true;
+                      
+                      // Skip next slot index if we used it for 2-hour lab
+                      if (isMultiHourLab && consecutiveSlots.length > 1) {
+                        i++; // Skip the next slot since we used it
+                      }
+                      break;
+                    }
+                  }
                 }
               }
             }
           }
-        }
 
         if (periodsScheduled < periodsRequired) {
           console.warn(`Could only schedule ${periodsScheduled}/${periodsRequired} periods for ${subject.name} in ${cls.name}`);

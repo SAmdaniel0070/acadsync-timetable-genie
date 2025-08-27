@@ -41,6 +41,7 @@ export interface Subject {
   classes?: string[]; // Array of class IDs this subject is assigned to - derived
   periodsPerWeek?: number; // Number of periods per week for this subject
   isLab?: boolean; // Indicates if this subject requires a lab
+  lab_duration_hours?: number; // Lab duration in hours (1 or 2)
   created_at?: string;
   updated_at?: string;
 }
@@ -147,3 +148,15 @@ export type ShareMethod = "whatsapp" | "email" | "download";
 
 // EditMode for timetable
 export type EditMode = "none" | "edit";
+
+// Timetable draft interface
+export interface TimetableDraft {
+  id: string;
+  name: string;
+  academic_year?: string;
+  timing_id: string;
+  year_id?: string;
+  draft_data: any; // JSON data containing the timetable structure
+  created_at?: string;
+  updated_at?: string;
+}

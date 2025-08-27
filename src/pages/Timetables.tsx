@@ -271,6 +271,14 @@ const Timetables = () => {
     setEditMode(prev => prev === "none" ? "edit" : "none");
   };
 
+  const handleLoadDraft = (draftData: any) => {
+    setTimetable(draftData);
+    toast({
+      title: "Success",
+      description: "Draft loaded successfully",
+    });
+  };
+
   const handleSaveChanges = async () => {
     try {
       setLoading(true);
@@ -324,6 +332,8 @@ const Timetables = () => {
           onShareWhatsApp={handleShareWhatsApp}
           editMode={editMode}
           toggleEditMode={toggleEditMode}
+          currentTimetableData={timetable}
+          onLoadDraft={handleLoadDraft}
         />
       </div>
 

@@ -6,6 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { EditMode } from "@/types";
+import { TimetableDrafts } from "./TimetableDrafts";
 
 interface TimetableActionsProps {
   onGenerate: () => void;
@@ -14,6 +15,8 @@ interface TimetableActionsProps {
   onShareWhatsApp: () => void;
   editMode: EditMode;
   toggleEditMode: () => void;
+  currentTimetableData?: any;
+  onLoadDraft: (draftData: any) => void;
 }
 
 export const TimetableActions: React.FC<TimetableActionsProps> = ({
@@ -22,7 +25,9 @@ export const TimetableActions: React.FC<TimetableActionsProps> = ({
   onShareEmail,
   onShareWhatsApp,
   editMode,
-  toggleEditMode
+  toggleEditMode,
+  currentTimetableData,
+  onLoadDraft,
 }) => {
   return (
     <div className="space-y-4">
@@ -45,6 +50,10 @@ export const TimetableActions: React.FC<TimetableActionsProps> = ({
       </div>
 
       <div className="flex flex-wrap gap-2">
+        <TimetableDrafts 
+          currentTimetableData={currentTimetableData}
+          onLoadDraft={onLoadDraft}
+        />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline">
