@@ -5,7 +5,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { TimetableService } from "@/services/timetableService";
 import { supabase } from "@/integrations/supabase/client";
 import { Class, Batch } from "@/types";
-import { Plus, Pencil, Trash2, Users } from "lucide-react";
+import { Plus, Pencil, Trash2, Users, UserPlus, Layers } from "lucide-react";
 import { 
   Dialog, 
   DialogContent, 
@@ -19,7 +19,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const Classes = () => {
   const { toast } = useToast();
@@ -32,21 +33,37 @@ const Classes = () => {
   const [formData, setFormData] = React.useState({
     name: "",
     year_id: "",
+    student_count: "",
   });
   
   // Batch state
   const [isBatchDialogOpen, setIsBatchDialogOpen] = React.useState(false);
+  const [isDivideBatchDialogOpen, setIsDivideBatchDialogOpen] = React.useState(false);
   const [currentBatch, setCurrentBatch] = React.useState<Batch | null>(null);
   const [batchFormData, setBatchFormData] = React.useState<Partial<Batch>>({
     name: "",
+    strength: 0,
   });
   const [expandedClassId, setExpandedClassId] = React.useState<string | null>(null);
+  const [batches, setBatches] = React.useState<{ [classId: string]: Batch[] }>({});
+  const [batchCount, setBatchCount] = React.useState<4 | 5>(4);
 
   const fetchClasses = React.useCallback(async () => {
     try {
       setLoading(true);
       const data = await TimetableService.getClasses();
       setClasses(data);
+      
+      // Fetch batches for each class
+      const batchData: { [classId: string]: Batch[] } = {};
+      for (const classItem of data) {
+        const { data: classBatches } = await supabase
+          .from('batches')
+          .select('*')
+          .eq('class_id', classItem.id);
+        batchData[classItem.id] = classBatches || [];
+      }
+      setBatches(batchData);
     } catch (error) {
       console.error("Error fetching classes:", error);
       toast({
@@ -87,13 +104,14 @@ const Classes = () => {
         .insert({
           name: formData.name || "",
           year_id: formData.year_id || "",
+          student_count: parseInt(formData.student_count) || 0,
         });
       toast({
         title: "Success",
         description: "Class added successfully",
       });
       setIsAddDialogOpen(false);
-      setFormData({ name: "", year_id: "" });
+      setFormData({ name: "", year_id: "", student_count: "" });
       fetchClasses();
     } catch (error) {
       console.error("Error adding class:", error);
@@ -115,6 +133,7 @@ const Classes = () => {
         .update({
           name: formData.name || currentClass.name,
           year_id: formData.year_id || currentClass.year_id,
+          student_count: parseInt(formData.student_count) || currentClass.student_count || 0,
         })
         .eq('id', currentClass.id);
       toast({
@@ -123,7 +142,7 @@ const Classes = () => {
       });
       setIsEditDialogOpen(false);
       setCurrentClass(null);
-      setFormData({ name: "", year_id: "" });
+      setFormData({ name: "", year_id: "", student_count: "" });
       fetchClasses();
     } catch (error) {
       console.error("Error updating class:", error);
@@ -165,13 +184,23 @@ const Classes = () => {
     if (!currentClass) return;
     
     try {
-      // Batch functionality would need to be implemented in Supabase
+      const { error } = await supabase
+        .from('batches')
+        .insert({
+          name: batchFormData.name || "",
+          class_id: currentClass.id,
+          strength: batchFormData.strength || 0,
+        });
+
+      if (error) throw error;
+
       toast({
-        title: "Info",
-        description: "Batch functionality not yet implemented",
+        title: "Success",
+        description: "Batch added successfully",
       });
       setIsBatchDialogOpen(false);
-      setBatchFormData({ name: "" });
+      setBatchFormData({ name: "", strength: 0 });
+      fetchClasses();
     } catch (error) {
       console.error("Error adding batch:", error);
       toast({
@@ -184,11 +213,18 @@ const Classes = () => {
 
   const handleDeleteBatch = async (batchId: string) => {
     try {
-      // Batch functionality would need to be implemented in Supabase
+      const { error } = await supabase
+        .from('batches')
+        .delete()
+        .eq('id', batchId);
+
+      if (error) throw error;
+
       toast({
-        title: "Info",
-        description: "Batch functionality not yet implemented",
+        title: "Success",
+        description: "Batch deleted successfully",
       });
+      fetchClasses();
     } catch (error) {
       console.error("Error deleting batch:", error);
       toast({
@@ -199,11 +235,58 @@ const Classes = () => {
     }
   };
 
+  const handleDivideBatches = async () => {
+    if (!currentClass || !currentClass.student_count) return;
+
+    try {
+      const studentsPerBatch = Math.floor(currentClass.student_count / batchCount);
+      const extraStudents = currentClass.student_count % batchCount;
+
+      // Delete existing batches for this class
+      await supabase
+        .from('batches')
+        .delete()
+        .eq('class_id', currentClass.id);
+
+      // Create new batches
+      const batchPromises = [];
+      for (let i = 0; i < batchCount; i++) {
+        const batchSize = studentsPerBatch + (i < extraStudents ? 1 : 0);
+        batchPromises.push(
+          supabase
+            .from('batches')
+            .insert({
+              name: `Batch ${String.fromCharCode(65 + i)}`, // A, B, C, D, E
+              class_id: currentClass.id,
+              strength: batchSize,
+            })
+        );
+      }
+
+      await Promise.all(batchPromises);
+
+      toast({
+        title: "Success",
+        description: `Class divided into ${batchCount} batches successfully`,
+      });
+      setIsDivideBatchDialogOpen(false);
+      fetchClasses();
+    } catch (error) {
+      console.error("Error dividing batches:", error);
+      toast({
+        title: "Error",
+        description: "Failed to divide batches. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const openEditDialog = (classItem: Class) => {
     setCurrentClass(classItem);
     setFormData({
       name: classItem.name,
       year_id: classItem.year_id || "",
+      student_count: classItem.student_count?.toString() || "",
     });
     setIsEditDialogOpen(true);
   };
@@ -229,21 +312,87 @@ const Classes = () => {
             className="w-full"
           >
             <div className="flex items-center justify-between">
-              <span>{classItem.name}</span>
+              <div className="flex items-center gap-2">
+                <span>{classItem.name}</span>
+                <Badge variant="outline" className="ml-2">
+                  {classItem.student_count || 0} students
+                </Badge>
+                {batches[classItem.id] && batches[classItem.id].length > 0 && (
+                  <Badge variant="secondary">
+                    {batches[classItem.id].length} batches
+                  </Badge>
+                )}
+              </div>
               <CollapsibleTrigger asChild>
                 <Button variant="ghost" size="sm">
                   <Users className="h-4 w-4 mr-1" />
-                  Info
+                  Details
                 </Button>
               </CollapsibleTrigger>
             </div>
             <CollapsibleContent className="mt-2">
-              <div className="pl-4 border-l-2 border-gray-200">
-                <p className="text-gray-500 text-sm">Year ID: {classItem.year_id || 'Not assigned'}</p>
+              <div className="pl-4 border-l-2 border-muted">
+                <p className="text-muted-foreground text-sm mb-2">Year ID: {classItem.year_id || 'Not assigned'}</p>
+                
+                {batches[classItem.id] && batches[classItem.id].length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-sm">Batches:</h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      {batches[classItem.id].map((batch) => (
+                        <div key={batch.id} className="flex items-center justify-between p-2 bg-muted/50 rounded">
+                          <span className="text-sm">{batch.name} ({batch.strength} students)</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteBatch(batch.id)}
+                            className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                <div className="flex gap-2 mt-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setCurrentClass(classItem);
+                      setIsBatchDialogOpen(true);
+                    }}
+                  >
+                    <UserPlus className="h-3 w-3 mr-1" />
+                    Add Batch
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setCurrentClass(classItem);
+                      setIsDivideBatchDialogOpen(true);
+                    }}
+                    disabled={!classItem.student_count || classItem.student_count < 4}
+                  >
+                    <Layers className="h-3 w-3 mr-1" />
+                    Divide Batches
+                  </Button>
+                </div>
               </div>
             </CollapsibleContent>
           </Collapsible>
         </div>
+      )
+    },
+    { 
+      key: "student_count", 
+      title: "Students",
+      render: (classItem: Class) => (
+        <Badge variant="outline">
+          {classItem.student_count || 0}
+        </Badge>
       )
     },
     { key: "year_id", title: "Year ID" },
@@ -265,7 +414,7 @@ const Classes = () => {
           <Button 
             variant="outline" 
             size="sm"
-            className="text-red-500 hover:text-red-700"
+            className="text-destructive hover:text-destructive"
             onClick={(e) => {
               e.stopPropagation();
               openDeleteDialog(classItem);
@@ -285,7 +434,7 @@ const Classes = () => {
         description="Add, edit or remove classes" 
         actions={
           <Button onClick={() => {
-            setFormData({ name: "", year_id: "" });
+            setFormData({ name: "", year_id: "", student_count: "" });
             setIsAddDialogOpen(true);
           }}>
             <Plus className="mr-2 h-4 w-4" />
@@ -331,6 +480,18 @@ const Classes = () => {
                   value={formData.year_id}
                   onChange={handleInputChange}
                   required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="student_count">Number of Students</Label>
+                <Input
+                  id="student_count"
+                  name="student_count"
+                  type="number"
+                  placeholder="e.g., 30"
+                  value={formData.student_count}
+                  onChange={handleInputChange}
+                  min="0"
                 />
               </div>
             </div>
@@ -379,6 +540,18 @@ const Classes = () => {
                   value={formData.year_id}
                   onChange={handleInputChange}
                   required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-student_count">Number of Students</Label>
+                <Input
+                  id="edit-student_count"
+                  name="student_count"
+                  type="number"
+                  placeholder="e.g., 30"
+                  value={formData.student_count}
+                  onChange={handleInputChange}
+                  min="0"
                 />
               </div>
             </div>
@@ -445,6 +618,18 @@ const Classes = () => {
                   required
                 />
               </div>
+              <div className="grid gap-2">
+                <Label htmlFor="batch-strength">Number of Students</Label>
+                <Input
+                  id="batch-strength"
+                  name="strength"
+                  type="number"
+                  placeholder="e.g., 15"
+                  value={batchFormData.strength?.toString() || ""}
+                  onChange={(e) => setBatchFormData(prev => ({ ...prev, strength: parseInt(e.target.value) || 0 }))}
+                  min="0"
+                />
+              </div>
             </div>
             <DialogFooter>
               <Button 
@@ -457,6 +642,52 @@ const Classes = () => {
               <Button type="submit">Add Batch</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Divide Batches Dialog */}
+      <Dialog open={isDivideBatchDialogOpen} onOpenChange={setIsDivideBatchDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Divide Class into Batches</DialogTitle>
+            <DialogDescription>
+              {currentClass && `Divide ${currentClass.name} (${currentClass.student_count} students) into equal batches`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>Number of Batches</Label>
+              <Select value={batchCount.toString()} onValueChange={(value) => setBatchCount(value as "4" | "5" === "4" ? 4 : 5)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="4">4 Batches</SelectItem>
+                  <SelectItem value="5">5 Batches</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {currentClass?.student_count && (
+              <div className="text-sm text-muted-foreground">
+                Each batch will have approximately {Math.floor(currentClass.student_count / batchCount)} students
+                {currentClass.student_count % batchCount > 0 && 
+                  ` (${currentClass.student_count % batchCount} batch${currentClass.student_count % batchCount > 1 ? 'es' : ''} will have 1 extra student)`
+                }
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => setIsDivideBatchDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleDivideBatches}>
+              Divide Batches
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

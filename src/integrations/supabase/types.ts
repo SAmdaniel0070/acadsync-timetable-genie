@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      batches: {
+        Row: {
+          class_id: string
+          created_at: string
+          id: string
+          name: string
+          strength: number | null
+          updated_at: string
+        }
+        Insert: {
+          class_id: string
+          created_at?: string
+          id?: string
+          name: string
+          strength?: number | null
+          updated_at?: string
+        }
+        Update: {
+          class_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          strength?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "batches_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       class_classroom_assignments: {
         Row: {
           class_id: string
@@ -58,6 +93,7 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          student_count: number | null
           updated_at: string
           year_id: string
         }
@@ -65,6 +101,7 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
+          student_count?: number | null
           updated_at?: string
           year_id: string
         }
@@ -72,6 +109,7 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          student_count?: number | null
           updated_at?: string
           year_id?: string
         }

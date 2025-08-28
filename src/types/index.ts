@@ -11,6 +11,7 @@ export interface Class {
   id: string;
   name: string; // e.g., "CS-A", "IT-B"
   year_id?: string; // reference to year
+  student_count?: number; // number of students in the class
   created_at?: string;
   updated_at?: string;
 }
@@ -19,7 +20,10 @@ export interface Class {
 export interface Batch {
   id: string;
   name: string; // e.g., "Batch A"
-  classId: string;
+  class_id: string;
+  strength?: number; // number of students in the batch
+  created_at?: string;
+  updated_at?: string;
 }
 
 // Teacher represents a faculty member
