@@ -50,6 +50,19 @@ export interface Subject {
   updated_at?: string;
 }
 
+// Lab schedule represents a scheduled lab session
+export interface LabSchedule {
+  id: string;
+  subject_id: string;
+  teacher_id: string;
+  classroom_id: string;
+  time_slot_id: string;
+  day: number; // 0 for Monday, 1 for Tuesday, etc.
+  class_id?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 // TimeSlot represents a period in the day
 export interface TimeSlot {
   id: string;

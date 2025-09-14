@@ -6,29 +6,45 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { TimetableService } from "@/services/timetableService";
 import { supabase } from "@/integrations/supabase/client";
-import { Subject, Class } from "@/types";
+import { Subject, Class, LabSchedule, Teacher, Classroom, TimeSlot, Batch } from "@/types";
 import { SubjectFormDialog } from "@/components/subject/SubjectFormDialog";
 import { SubjectList } from "@/components/subject/SubjectList";
+import { LabScheduleDialog } from "@/components/subject/LabScheduleDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 const Subjects = () => {
   const { toast } = useToast();
   const [subjects, setSubjects] = React.useState<Subject[]>([]);
   const [classes, setClasses] = React.useState<Class[]>([]);
+  const [teachers, setTeachers] = React.useState<Teacher[]>([]);
+  const [classrooms, setClassrooms] = React.useState<Classroom[]>([]);
+  const [timeSlots, setTimeSlots] = React.useState<TimeSlot[]>([]);
+  const [batches, setBatches] = React.useState<Batch[]>([]);
+  const [labSchedules, setLabSchedules] = React.useState<LabSchedule[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
+  const [isLabDialogOpen, setIsLabDialogOpen] = React.useState(false);
   const [currentSubject, setCurrentSubject] = React.useState<Subject | null>(null);
 
   const fetchData = React.useCallback(async () => {
     try {
       setLoading(true);
-      const [subjectsData, classesData] = await Promise.all([
+      const [subjectsData, classesData, teachersData, classroomsData, timeSlotsData, batchesData] = await Promise.all([
         TimetableService.getSubjects(),
         TimetableService.getClasses(),
+        TimetableService.getTeachers(),
+        TimetableService.getClassrooms(),
+        TimetableService.getTimeSlots(),
+        supabase.from('batches').select('*'),
       ]);
+      
       setSubjects(subjectsData);
       setClasses(classesData);
+      setTeachers(teachersData);
+      setClassrooms(classroomsData);
+      setTimeSlots(timeSlotsData);
+      setBatches(batchesData.data || []);
     } catch (error) {
       console.error("Error fetching data:", error);
       toast({
@@ -38,6 +54,25 @@ const Subjects = () => {
       });
     } finally {
       setLoading(false);
+    }
+  }, [toast]);
+
+  const fetchLabSchedules = React.useCallback(async (subjectId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('lab_schedules')
+        .select('*')
+        .eq('subject_id', subjectId);
+      
+      if (error) throw error;
+      setLabSchedules(data || []);
+    } catch (error) {
+      console.error("Error fetching lab schedules:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch lab schedules.",
+        variant: "destructive",
+      });
     }
   }, [toast]);
 
@@ -54,6 +89,9 @@ const Subjects = () => {
           .update({
             name: data.name,
             code: data.code,
+            periods_per_week: data.periodsPerWeek,
+            is_lab: data.isLab,
+            lab_duration_hours: data.lab_duration_hours,
           })
           .eq('id', currentSubject.id);
         
@@ -91,6 +129,9 @@ const Subjects = () => {
           .insert({
             name: data.name,
             code: data.code,
+            periods_per_week: data.periodsPerWeek,
+            is_lab: data.isLab,
+            lab_duration_hours: data.lab_duration_hours,
           })
           .select()
           .single();
@@ -167,6 +208,12 @@ const Subjects = () => {
     setCurrentSubject(null);
   };
 
+  const handleManageLabs = async (subject: Subject) => {
+    setCurrentSubject(subject);
+    await fetchLabSchedules(subject.id);
+    setIsLabDialogOpen(true);
+  };
+
   return (
     <div className="animate-fade-in">
       <PageHeader
@@ -191,6 +238,7 @@ const Subjects = () => {
           setCurrentSubject(subject);
           setIsDeleteDialogOpen(true);
         }}
+        onManageLabs={handleManageLabs}
       />
 
       <SubjectFormDialog
@@ -220,6 +268,22 @@ const Subjects = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {currentSubject && (
+        <LabScheduleDialog
+          open={isLabDialogOpen}
+          onOpenChange={setIsLabDialogOpen}
+          subjectId={currentSubject.id}
+          subjectName={currentSubject.name}
+          teachers={teachers}
+          classrooms={classrooms}
+          timeSlots={timeSlots}
+          classes={classes}
+          batches={batches}
+          labSchedules={labSchedules}
+          onLabSchedulesChange={() => fetchLabSchedules(currentSubject.id)}
+        />
+      )}
     </div>
   );
 };

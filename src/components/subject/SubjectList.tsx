@@ -2,7 +2,8 @@
 import React from "react";
 import { DataTable } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
-import { Edit, Trash } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Edit, Trash, Calendar } from "lucide-react";
 import { Subject, Class } from "@/types";
 
 interface SubjectListProps {
@@ -10,6 +11,7 @@ interface SubjectListProps {
   classes: Class[];
   onEdit: (subject: Subject) => void;
   onDelete: (subject: Subject) => void;
+  onManageLabs: (subject: Subject) => void;
 }
 
 export const SubjectList = ({
@@ -17,6 +19,7 @@ export const SubjectList = ({
   classes,
   onEdit,
   onDelete,
+  onManageLabs,
 }: SubjectListProps) => {
   const columns = [
     { key: "name", title: "Name" },
@@ -36,6 +39,27 @@ export const SubjectList = ({
       ),
     },
     {
+      key: "periodsPerWeek",
+      title: "Periods/Week",
+      render: (subject: Subject) => (
+        <span>{subject.periodsPerWeek || 1}</span>
+      ),
+    },
+    {
+      key: "isLab",
+      title: "Type",
+      render: (subject: Subject) => (
+        <div className="flex gap-1">
+          <Badge variant="outline">Theory</Badge>
+          {subject.isLab && (
+            <Badge variant="secondary">
+              Lab ({subject.lab_duration_hours || 2}h)
+            </Badge>
+          )}
+        </div>
+      ),
+    },
+    {
       key: "actions",
       title: "Actions",
       render: (subject: Subject) => (
@@ -47,6 +71,16 @@ export const SubjectList = ({
           >
             <Edit className="h-4 w-4" />
           </Button>
+          {subject.isLab && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onManageLabs(subject)}
+              title="Manage Lab Schedules"
+            >
+              <Calendar className="h-4 w-4" />
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"

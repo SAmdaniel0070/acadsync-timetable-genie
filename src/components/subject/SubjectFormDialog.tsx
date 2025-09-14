@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Class, Subject } from "@/types";
 
 interface SubjectFormDialogProps {
@@ -26,7 +27,9 @@ export const SubjectFormDialog = ({
     name: "",
     code: "",
     classes: [],
-    periodsPerWeek: 1
+    periodsPerWeek: 1,
+    isLab: false,
+    lab_duration_hours: 2
   });
 
   React.useEffect(() => {
@@ -35,7 +38,9 @@ export const SubjectFormDialog = ({
         name: currentSubject?.name || "",
         code: currentSubject?.code || "",
         classes: currentSubject?.classes || [],
-        periodsPerWeek: currentSubject?.periodsPerWeek || 1
+        periodsPerWeek: currentSubject?.periodsPerWeek || 1,
+        isLab: currentSubject?.isLab || false,
+        lab_duration_hours: currentSubject?.lab_duration_hours || 2
       });
     }
   }, [open, currentSubject]);
@@ -84,6 +89,33 @@ export const SubjectFormDialog = ({
               onChange={(e) => setFormData({ ...formData, periodsPerWeek: parseInt(e.target.value) || 1 })}
               placeholder="e.g. 5"
             />
+          </div>
+          <div className="grid gap-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="isLab">Has Lab/Practical</Label>
+              <Switch
+                id="isLab"
+                checked={formData.isLab}
+                onCheckedChange={(checked) => setFormData({ ...formData, isLab: checked })}
+              />
+            </div>
+            {formData.isLab && (
+              <div className="ml-6">
+                <Label htmlFor="labDuration">Lab Duration (hours)</Label>
+                <Select
+                  value={formData.lab_duration_hours?.toString() || "2"}
+                  onValueChange={(value) => setFormData({ ...formData, lab_duration_hours: parseInt(value) })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select duration" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1 hour</SelectItem>
+                    <SelectItem value="2">2 hours</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <div className="grid gap-2">
             <Label>Assign to Classes</Label>
