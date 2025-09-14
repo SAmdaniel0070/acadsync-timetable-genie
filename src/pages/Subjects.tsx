@@ -10,6 +10,7 @@ import { Subject, Class, LabSchedule, Teacher, Classroom, TimeSlot, Batch } from
 import { SubjectFormDialog } from "@/components/subject/SubjectFormDialog";
 import { SubjectList } from "@/components/subject/SubjectList";
 import { LabScheduleDialog } from "@/components/subject/LabScheduleDialog";
+import { TeacherAssignmentDialog } from "@/components/subject/TeacherAssignmentDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 const Subjects = () => {
@@ -25,6 +26,7 @@ const Subjects = () => {
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [isLabDialogOpen, setIsLabDialogOpen] = React.useState(false);
+  const [isTeacherDialogOpen, setIsTeacherDialogOpen] = React.useState(false);
   const [currentSubject, setCurrentSubject] = React.useState<Subject | null>(null);
 
   const fetchData = React.useCallback(async () => {
@@ -214,6 +216,11 @@ const Subjects = () => {
     setIsLabDialogOpen(true);
   };
 
+  const handleManageTeachers = (subject: Subject) => {
+    setCurrentSubject(subject);
+    setIsTeacherDialogOpen(true);
+  };
+
   return (
     <div className="animate-fade-in">
       <PageHeader
@@ -239,6 +246,7 @@ const Subjects = () => {
           setIsDeleteDialogOpen(true);
         }}
         onManageLabs={handleManageLabs}
+        onManageTeachers={handleManageTeachers}
       />
 
       <SubjectFormDialog
@@ -270,19 +278,29 @@ const Subjects = () => {
       </Dialog>
 
       {currentSubject && (
-        <LabScheduleDialog
-          open={isLabDialogOpen}
-          onOpenChange={setIsLabDialogOpen}
-          subjectId={currentSubject.id}
-          subjectName={currentSubject.name}
-          teachers={teachers}
-          classrooms={classrooms}
-          timeSlots={timeSlots}
-          classes={classes}
-          batches={batches}
-          labSchedules={labSchedules}
-          onLabSchedulesChange={() => fetchLabSchedules(currentSubject.id)}
-        />
+        <>
+          <LabScheduleDialog
+            open={isLabDialogOpen}
+            onOpenChange={setIsLabDialogOpen}
+            subjectId={currentSubject.id}
+            subjectName={currentSubject.name}
+            teachers={teachers}
+            classrooms={classrooms}
+            timeSlots={timeSlots}
+            classes={classes}
+            batches={batches}
+            labSchedules={labSchedules}
+            onLabSchedulesChange={() => fetchLabSchedules(currentSubject.id)}
+          />
+          <TeacherAssignmentDialog
+            open={isTeacherDialogOpen}
+            onOpenChange={setIsTeacherDialogOpen}
+            subject={currentSubject}
+            teachers={teachers}
+            batches={batches}
+            onAssignmentsChange={fetchData}
+          />
+        </>
       )}
     </div>
   );

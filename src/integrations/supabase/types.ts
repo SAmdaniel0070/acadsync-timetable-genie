@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      batch_teacher_assignments: {
+        Row: {
+          assignment_type: string
+          batch_id: string
+          created_at: string
+          id: string
+          subject_id: string
+          teacher_id: string
+          updated_at: string
+        }
+        Insert: {
+          assignment_type: string
+          batch_id: string
+          created_at?: string
+          id?: string
+          subject_id: string
+          teacher_id: string
+          updated_at?: string
+        }
+        Update: {
+          assignment_type?: string
+          batch_id?: string
+          created_at?: string
+          id?: string
+          subject_id?: string
+          teacher_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       batches: {
         Row: {
           class_id: string

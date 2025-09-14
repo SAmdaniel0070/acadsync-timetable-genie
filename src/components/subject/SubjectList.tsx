@@ -3,7 +3,7 @@ import React from "react";
 import { DataTable } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash, Calendar } from "lucide-react";
+import { Edit, Trash, Calendar, Users } from "lucide-react";
 import { Subject, Class } from "@/types";
 
 interface SubjectListProps {
@@ -12,6 +12,7 @@ interface SubjectListProps {
   onEdit: (subject: Subject) => void;
   onDelete: (subject: Subject) => void;
   onManageLabs: (subject: Subject) => void;
+  onManageTeachers: (subject: Subject) => void;
 }
 
 export const SubjectList = ({
@@ -20,6 +21,7 @@ export const SubjectList = ({
   onEdit,
   onDelete,
   onManageLabs,
+  onManageTeachers,
 }: SubjectListProps) => {
   const columns = [
     { key: "name", title: "Name" },
@@ -70,6 +72,14 @@ export const SubjectList = ({
             onClick={() => onEdit(subject)}
           >
             <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onManageTeachers(subject)}
+            title="Assign Teachers to Batches"
+          >
+            <Users className="h-4 w-4" />
           </Button>
           {subject.isLab && (
             <Button

@@ -149,6 +149,16 @@ export interface TeacherSubjectAssignment {
   created_at?: string;
 }
 
+export interface BatchTeacherAssignment {
+  id: string;
+  subject_id: string;
+  batch_id: string;
+  teacher_id: string;
+  assignment_type: 'theory' | 'lab';
+  created_at?: string;
+  updated_at?: string;
+}
+
 // Form values interfaces
 export interface SubjectFormValues {
   name: string;
