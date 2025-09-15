@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext";
 import NotFound from "./pages/NotFound";
 import Layout from "./components/layout/Layout";
 import Dashboard from "./pages/Dashboard";
@@ -18,6 +19,7 @@ import Timings from "./pages/Timings";
 import Share from "./pages/Share";
 import DataUpload from "./pages/DataUpload";
 import Settings from "./pages/Settings";
+import Auth from "./pages/Auth";
 
 const queryClient = new QueryClient();
 
@@ -27,22 +29,29 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Layout>
+        <AuthProvider>
           <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/classes" element={<Classes />} />
-            <Route path="/classes/classrooms" element={<ClassroomsPage />} />
-            <Route path="/classrooms" element={<ClassroomsManagement />} />
-            <Route path="/timetables" element={<Timetables />} />
-            <Route path="/teachers" element={<Teachers />} />
-            <Route path="/subjects" element={<Subjects />} />
-            <Route path="/timings" element={<Timings />} />
-            <Route path="/share" element={<Share />} />
-            <Route path="/upload" element={<DataUpload />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="*" element={<NotFound />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/*" element={
+              <Layout>
+                <Routes>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/classes" element={<Classes />} />
+                  <Route path="/classes/classrooms" element={<ClassroomsPage />} />
+                  <Route path="/classrooms" element={<ClassroomsManagement />} />
+                  <Route path="/timetables" element={<Timetables />} />
+                  <Route path="/teachers" element={<Teachers />} />
+                  <Route path="/subjects" element={<Subjects />} />
+                  <Route path="/timings" element={<Timings />} />
+                  <Route path="/share" element={<Share />} />
+                  <Route path="/upload" element={<DataUpload />} />
+                  <Route path="/settings" element={<Settings />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Layout>
+            } />
           </Routes>
-        </Layout>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

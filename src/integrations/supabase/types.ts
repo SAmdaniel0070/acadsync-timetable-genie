@@ -653,7 +653,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_safe_teacher_info: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          created_at: string
+          experience: number
+          id: string
+          name: string
+          specialization: string
+          updated_at: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

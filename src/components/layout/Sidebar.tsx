@@ -1,19 +1,19 @@
-
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Calendar,
   GraduationCap,
   Home,
   Settings,
-  User,
   Users,
   BookOpen,
   Building,
   Clock,
   Share,
   Upload,
+  LogOut,
 } from "lucide-react";
 
 type NavItem = {
@@ -72,6 +72,7 @@ const mainNavItems: NavItem[] = [
 
 const Sidebar = () => {
   const location = useLocation();
+  const { signOut } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
   return (
@@ -170,6 +171,16 @@ const Sidebar = () => {
               ))}
             </nav>
           </div>
+          {/* Mobile Sign Out */}
+          <div className="border-t p-4">
+            <button
+              onClick={signOut}
+              className="flex items-center px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 rounded-md w-full"
+            >
+              <LogOut className="mr-3 h-5 w-5" />
+              Sign Out
+            </button>
+          </div>
         </div>
       </div>
 
@@ -205,14 +216,31 @@ const Sidebar = () => {
               ))}
             </nav>
           </div>
-          <div className="flex-shrink-0 flex border-t border-gray-200 p-4">
+          <div className="flex-shrink-0 flex border-t border-gray-200 p-4 flex-col space-y-2">
             <Link
               to="/settings"
-              className="flex items-center px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-md w-full"
+              className={cn(
+                "flex items-center px-4 py-3 text-sm font-medium rounded-md w-full",
+                location.pathname === "/settings"
+                  ? "bg-brand-100 text-brand-700"
+                  : "text-gray-600 hover:bg-gray-100"
+              )}
             >
-              <Settings className="mr-3 h-5 w-5 text-gray-400" />
+              <Settings className={cn(
+                "mr-3 h-5 w-5",
+                location.pathname === "/settings"
+                  ? "text-brand-700"
+                  : "text-gray-400"
+              )} />
               Settings
             </Link>
+            <button
+              onClick={signOut}
+              className="flex items-center px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 rounded-md w-full"
+            >
+              <LogOut className="mr-3 h-5 w-5" />
+              Sign Out
+            </button>
           </div>
         </div>
       </div>
