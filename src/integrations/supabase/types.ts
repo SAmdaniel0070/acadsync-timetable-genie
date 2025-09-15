@@ -246,13 +246,6 @@ export type Database = {
             foreignKeyName: "fk_lab_schedules_teacher_id"
             columns: ["teacher_id"]
             isOneToOne: false
-            referencedRelation: "public_teachers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_lab_schedules_teacher_id"
-            columns: ["teacher_id"]
-            isOneToOne: false
             referencedRelation: "teachers"
             referencedColumns: ["id"]
           },
@@ -328,13 +321,6 @@ export type Database = {
             foreignKeyName: "lessons_teacher_id_fkey"
             columns: ["teacher_id"]
             isOneToOne: false
-            referencedRelation: "public_teachers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "lessons_teacher_id_fkey"
-            columns: ["teacher_id"]
-            isOneToOne: false
             referencedRelation: "teachers"
             referencedColumns: ["id"]
           },
@@ -343,13 +329,6 @@ export type Database = {
             columns: ["time_slot_id"]
             isOneToOne: false
             referencedRelation: "time_slots"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "lessons_timetable_id_fkey"
-            columns: ["timetable_id"]
-            isOneToOne: false
-            referencedRelation: "public_timetables"
             referencedColumns: ["id"]
           },
           {
@@ -455,13 +434,6 @@ export type Database = {
             columns: ["subject_id"]
             isOneToOne: false
             referencedRelation: "subjects"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "teacher_subject_assignments_teacher_id_fkey"
-            columns: ["teacher_id"]
-            isOneToOne: false
-            referencedRelation: "public_teachers"
             referencedColumns: ["id"]
           },
           {
@@ -678,78 +650,7 @@ export type Database = {
       }
     }
     Views: {
-      public_teachers: {
-        Row: {
-          created_at: string | null
-          experience: number | null
-          id: string | null
-          name: string | null
-          specialization: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          experience?: number | null
-          id?: string | null
-          name?: string | null
-          specialization?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          experience?: number | null
-          id?: string | null
-          name?: string | null
-          specialization?: string | null
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
-      public_timetables: {
-        Row: {
-          academic_year: string | null
-          created_at: string | null
-          id: string | null
-          name: string | null
-          timing_id: string | null
-          updated_at: string | null
-          year_id: string | null
-        }
-        Insert: {
-          academic_year?: string | null
-          created_at?: string | null
-          id?: string | null
-          name?: string | null
-          timing_id?: string | null
-          updated_at?: string | null
-          year_id?: string | null
-        }
-        Update: {
-          academic_year?: string | null
-          created_at?: string | null
-          id?: string | null
-          name?: string | null
-          timing_id?: string | null
-          updated_at?: string | null
-          year_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "timetables_timing_id_fkey"
-            columns: ["timing_id"]
-            isOneToOne: false
-            referencedRelation: "timings"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "timetables_year_id_fkey"
-            columns: ["year_id"]
-            isOneToOne: false
-            referencedRelation: "years"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      [_ in never]: never
     }
     Functions: {
       [_ in never]: never
