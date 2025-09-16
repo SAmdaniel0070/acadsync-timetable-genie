@@ -3,7 +3,7 @@ import React from "react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { DataService } from "@/services/mockData";
+import { TimetableService } from "@/services/timetableService";
 import { Download, Mail, Share2 } from "lucide-react";
 import { 
   Select, 
@@ -13,7 +13,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TimetableView } from "@/components/timetable/TimetableView";
+import { TimetablePreview } from "@/components/timetable/TimetablePreview";
 import { Timetable, Class, Teacher, Subject, TimeSlot, TimetableView as TimetableViewType } from "@/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -40,11 +40,11 @@ const Share = () => {
     try {
       setLoading(true);
       const [timetableData, classesData, teachersData, subjectsData, timeSlotsData] = await Promise.all([
-        DataService.getTimetable(),
-        DataService.getClasses(),
-        DataService.getTeachers(),
-        DataService.getSubjects(),
-        DataService.getTimeSlots(),
+        TimetableService.getTimetable(),
+        TimetableService.getClasses(),
+        TimetableService.getTeachers(),
+        TimetableService.getSubjects(),
+        TimetableService.getTimeSlots(),
       ]);
       
       setTimetable(timetableData);
@@ -84,17 +84,31 @@ const Share = () => {
         return;
       }
       
-      await DataService.shareTimetable({
-        method: "whatsapp",
-        timetableId: timetable?.id || "",
-        view: activeView,
-        filterId: activeView === "class" ? selectedClassId : 
-          activeView === "teacher" ? selectedTeacherId : undefined
-      });
+      if (!timetable?.id) {
+        toast({
+          title: "No Timetable",
+          description: "No timetable available to share.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Generate share token
+      const shareToken = await TimetableService.generateShareToken(timetable.id);
+      
+      // Get formatted timetable content
+      const shareData = await TimetableService.shareTimetable(shareToken, "whatsapp");
+      
+      // Create WhatsApp URL with formatted text
+      const whatsappMessage = encodeURIComponent(shareData);
+      const whatsappUrl = `https://wa.me/${phoneNumber.replace(/[^\d]/g, '')}?text=${whatsappMessage}`;
+      
+      // Open WhatsApp in new tab
+      window.open(whatsappUrl, '_blank');
       
       toast({
-        title: "Timetable Shared",
-        description: `Timetable shared to WhatsApp number ${phoneNumber}`,
+        title: "WhatsApp Opened",
+        description: "WhatsApp opened with timetable data. Send the message to share.",
       });
     } catch (error) {
       console.error("Error sharing timetable via WhatsApp:", error);
@@ -117,17 +131,32 @@ const Share = () => {
         return;
       }
       
-      await DataService.shareTimetable({
-        method: "email",
-        timetableId: timetable?.id || "",
-        view: activeView,
-        filterId: activeView === "class" ? selectedClassId : 
-          activeView === "teacher" ? selectedTeacherId : undefined
-      });
+      if (!timetable?.id) {
+        toast({
+          title: "No Timetable",
+          description: "No timetable available to share.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Generate share token
+      const shareToken = await TimetableService.generateShareToken(timetable.id);
+      
+      // Get formatted timetable content
+      const shareData = await TimetableService.shareTimetable(shareToken, "email");
+      
+      // Create mailto URL with formatted text
+      const subject = encodeURIComponent("Timetable Share");
+      const body = encodeURIComponent(shareData);
+      const mailtoUrl = `mailto:${recipientEmail}?subject=${subject}&body=${body}`;
+      
+      // Open email client
+      window.open(mailtoUrl);
       
       toast({
-        title: "Timetable Shared",
-        description: `Timetable sent to ${recipientEmail}`,
+        title: "Email Client Opened",
+        description: "Email client opened with timetable data.",
       });
     } catch (error) {
       console.error("Error sharing timetable via email:", error);
@@ -141,13 +170,30 @@ const Share = () => {
 
   const handleDownload = async () => {
     try {
-      await DataService.shareTimetable({
-        method: "download",
-        timetableId: timetable?.id || "",
-        view: activeView,
-        filterId: activeView === "class" ? selectedClassId : 
-          activeView === "teacher" ? selectedTeacherId : undefined
-      });
+      if (!timetable?.id) {
+        toast({
+          title: "No Timetable",
+          description: "No timetable available to download.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Download timetable as PDF
+      const blob = await TimetableService.downloadTimetable(timetable.id, 'pdf');
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `timetable-${activeView}${
+        activeView === "class" ? `-${getClassName(selectedClassId)}` : 
+        activeView === "teacher" ? `-${getTeacherName(selectedTeacherId)}` : ""
+      }.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
       
       toast({
         title: "Timetable Downloaded",
@@ -161,6 +207,15 @@ const Share = () => {
         variant: "destructive",
       });
     }
+  };
+
+  // Helper functions for display names
+  const getClassName = (classId: string) => {
+    return classes.find((c) => c.id === classId)?.name || "Unknown Class";
+  };
+
+  const getTeacherName = (teacherId: string) => {
+    return teachers.find((t) => t.id === teacherId)?.name || "Unknown Teacher";
   };
 
   if (loading) {
@@ -231,9 +286,9 @@ const Share = () => {
 
             <div className="mt-6 space-y-2">
               <h3 className="font-medium">Preview</h3>
-              <div className="max-h-96 overflow-auto border rounded-md">
+              <div className="border rounded-md">
                 {timetable && (
-                  <TimetableView
+                  <TimetablePreview
                     timetable={timetable}
                     classes={classes}
                     teachers={teachers}
