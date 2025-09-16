@@ -1,7 +1,7 @@
 import React from "react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
-import { DataTable } from "@/components/ui/data-table";
+import { SelectableDataTable } from "@/components/ui/selectable-data-table";
 import { TimetableService } from "@/services/timetableService";
 import { supabase } from "@/integrations/supabase/client";
 import { Class, Batch } from "@/types";
@@ -25,10 +25,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 const Classes = () => {
   const { toast } = useToast();
   const [classes, setClasses] = React.useState<Class[]>([]);
+  const [selectedClasses, setSelectedClasses] = React.useState<Class[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = React.useState(false);
   const [currentClass, setCurrentClass] = React.useState<Class | null>(null);
   const [formData, setFormData] = React.useState({
     name: "",
@@ -281,6 +283,42 @@ const Classes = () => {
     }
   };
 
+  const handleBulkDelete = async () => {
+    try {
+      // Delete batches for selected classes first
+      for (const classItem of selectedClasses) {
+        await supabase
+          .from('batches')
+          .delete()
+          .eq('class_id', classItem.id);
+      }
+
+      // Delete the classes
+      const classIds = selectedClasses.map(c => c.id);
+      const { error } = await supabase
+        .from('classes')
+        .delete()
+        .in('id', classIds);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `${selectedClasses.length} classes deleted successfully`,
+      });
+      setIsBulkDeleteDialogOpen(false);
+      setSelectedClasses([]);
+      fetchClasses();
+    } catch (error) {
+      console.error("Error deleting classes:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete classes. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const openEditDialog = (classItem: Class) => {
     setCurrentClass(classItem);
     setFormData({
@@ -443,9 +481,12 @@ const Classes = () => {
         }
       />
 
-      <DataTable 
+      <SelectableDataTable 
         data={classes} 
         columns={columns} 
+        selectedItems={selectedClasses}
+        onSelectionChange={setSelectedClasses}
+        onBulkDelete={() => setIsBulkDeleteDialogOpen(true)}
         isLoading={loading}
       />
 
@@ -686,6 +727,26 @@ const Classes = () => {
             </Button>
             <Button onClick={handleDivideBatches}>
               Divide Batches
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <Dialog open={isBulkDeleteDialogOpen} onOpenChange={setIsBulkDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Bulk Deletion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete {selectedClasses.length} selected class{selectedClasses.length > 1 ? 'es' : ''}? This will also delete all associated batches. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsBulkDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleBulkDelete}>
+              Delete {selectedClasses.length} Class{selectedClasses.length > 1 ? 'es' : ''}
             </Button>
           </DialogFooter>
         </DialogContent>

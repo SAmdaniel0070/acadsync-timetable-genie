@@ -1,9 +1,8 @@
-
 import React from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Edit, Trash2 } from "lucide-react";
 import { TimetableService } from "@/services/timetableService";
 import { supabase } from "@/integrations/supabase/client";
 import { Subject, Class, LabSchedule, Teacher, Classroom, TimeSlot, Batch } from "@/types";
@@ -11,11 +10,13 @@ import { SubjectFormDialog } from "@/components/subject/SubjectFormDialog";
 import { SubjectList } from "@/components/subject/SubjectList";
 import { LabScheduleDialog } from "@/components/subject/LabScheduleDialog";
 import { TeacherAssignmentDialog } from "@/components/subject/TeacherAssignmentDialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { SelectableDataTable } from "@/components/ui/selectable-data-table";
 
 const Subjects = () => {
   const { toast } = useToast();
   const [subjects, setSubjects] = React.useState<Subject[]>([]);
+  const [selectedSubjects, setSelectedSubjects] = React.useState<Subject[]>([]);
   const [classes, setClasses] = React.useState<Class[]>([]);
   const [teachers, setTeachers] = React.useState<Teacher[]>([]);
   const [classrooms, setClassrooms] = React.useState<Classroom[]>([]);
@@ -25,6 +26,7 @@ const Subjects = () => {
   const [loading, setLoading] = React.useState(true);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = React.useState(false);
   const [isLabDialogOpen, setIsLabDialogOpen] = React.useState(false);
   const [isTeacherDialogOpen, setIsTeacherDialogOpen] = React.useState(false);
   const [currentSubject, setCurrentSubject] = React.useState<Subject | null>(null);
@@ -85,7 +87,6 @@ const Subjects = () => {
   const handleSubmit = async (data: Omit<Subject, "id">) => {
     try {
       if (currentSubject) {
-        // Update subject
         const { error: subjectError } = await supabase
           .from('subjects')
           .update({
@@ -99,13 +100,11 @@ const Subjects = () => {
         
         if (subjectError) throw subjectError;
 
-        // Delete existing class assignments
         await supabase
           .from('subject_class_assignments')
           .delete()
           .eq('subject_id', currentSubject.id);
 
-        // Insert new class assignments
         if (data.classes && data.classes.length > 0) {
           const assignments = data.classes.map(classId => ({
             subject_id: currentSubject.id,
@@ -125,7 +124,6 @@ const Subjects = () => {
           description: "Subject updated successfully.",
         });
       } else {
-        // Create new subject
         const { data: newSubject, error: subjectError } = await supabase
           .from('subjects')
           .insert({
@@ -140,7 +138,6 @@ const Subjects = () => {
         
         if (subjectError) throw subjectError;
 
-        // Insert class assignments
         if (data.classes && data.classes.length > 0) {
           const assignments = data.classes.map(classId => ({
             subject_id: newSubject.id,
@@ -175,13 +172,11 @@ const Subjects = () => {
   const handleDelete = async () => {
     try {
       if (currentSubject) {
-        // Delete class assignments first
         await supabase
           .from('subject_class_assignments')
           .delete()
           .eq('subject_id', currentSubject.id);
 
-        // Delete the subject
         const { error } = await supabase
           .from('subjects')
           .delete()
@@ -201,6 +196,39 @@ const Subjects = () => {
       toast({
         title: "Error",
         description: "Failed to delete subject.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    try {
+      for (const subject of selectedSubjects) {
+        await supabase
+          .from('subject_class_assignments')
+          .delete()
+          .eq('subject_id', subject.id);
+      }
+
+      const subjectIds = selectedSubjects.map(s => s.id);
+      const { error } = await supabase
+        .from('subjects')
+        .delete()
+        .in('id', subjectIds);
+      
+      if (error) throw error;
+      await fetchData();
+      toast({
+        title: "Success",
+        description: `${selectedSubjects.length} subjects deleted successfully.`,
+      });
+      setIsBulkDeleteDialogOpen(false);
+      setSelectedSubjects([]);
+    } catch (error) {
+      console.error("Error deleting subjects:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete subjects.",
         variant: "destructive",
       });
     }
@@ -234,19 +262,56 @@ const Subjects = () => {
         }
       />
 
-      <SubjectList
-        subjects={subjects}
-        classes={classes}
-        onEdit={(subject) => {
-          setCurrentSubject(subject);
-          setIsDialogOpen(true);
-        }}
-        onDelete={(subject) => {
-          setCurrentSubject(subject);
-          setIsDeleteDialogOpen(true);
-        }}
-        onManageLabs={handleManageLabs}
-        onManageTeachers={handleManageTeachers}
+      <SelectableDataTable
+        data={subjects}
+        columns={[
+          { key: "name", title: "Name" },
+          { key: "code", title: "Code" },
+          { 
+            key: "periodsPerWeek", 
+            title: "Periods/Week",
+            render: (subject: Subject) => subject.periodsPerWeek || 0
+          },
+          { 
+            key: "isLab", 
+            title: "Type",
+            render: (subject: Subject) => subject.isLab ? "Lab" : "Theory"
+          },
+          {
+            key: "actions",
+            title: "Actions",
+            render: (subject: Subject) => (
+              <div className="flex space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCurrentSubject(subject);
+                    setIsDialogOpen(true);
+                  }}
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCurrentSubject(subject);
+                    setIsDeleteDialogOpen(true);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ),
+          },
+        ]}
+        selectedItems={selectedSubjects}
+        onSelectionChange={setSelectedSubjects}
+        onBulkDelete={() => setIsBulkDeleteDialogOpen(true)}
+        isLoading={loading}
       />
 
       <SubjectFormDialog
@@ -272,6 +337,25 @@ const Subjects = () => {
             </Button>
             <Button variant="destructive" onClick={handleDelete}>
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isBulkDeleteDialogOpen} onOpenChange={setIsBulkDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Bulk Deletion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete {selectedSubjects.length} selected subject{selectedSubjects.length > 1 ? 's' : ''}? This will also delete all associated class assignments. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsBulkDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleBulkDelete}>
+              Delete {selectedSubjects.length} Subject{selectedSubjects.length > 1 ? 's' : ''}
             </Button>
           </DialogFooter>
         </DialogContent>
