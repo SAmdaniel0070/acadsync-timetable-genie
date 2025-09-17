@@ -178,23 +178,35 @@ const Teachers = () => {
       setDeletedTeachers(teachersToDelete);
       setSelectedTeachers([]);
       
-      // Delete from database
-      const { error } = await supabase
-        .from('teachers')
-        .delete()
-        .in('id', teacherIds);
-      
-      if (error) throw error;
-      
       // Clear any existing timeout
       if (undoTimeoutId) {
         clearTimeout(undoTimeoutId);
       }
       
-      // Set up undo timeout
-      const timeoutId = setTimeout(() => {
-        setDeletedTeachers([]);
-        setUndoTimeoutId(null);
+      // Set up undo timeout - delete from database after 10 seconds
+      const timeoutId = setTimeout(async () => {
+        try {
+          const { error } = await supabase
+            .from('teachers')
+            .delete()
+            .in('id', teacherIds);
+          
+          if (error) {
+            console.error("Error permanently deleting teachers:", error);
+            // If permanent deletion fails, restore the teachers
+            setTeachers(prev => [...prev, ...teachersToDelete]);
+            toast({
+              title: "Error",
+              description: "Failed to permanently delete teachers. They have been restored.",
+              variant: "destructive",
+            });
+          }
+        } catch (error) {
+          console.error("Error in permanent deletion:", error);
+        } finally {
+          setDeletedTeachers([]);
+          setUndoTimeoutId(null);
+        }
       }, 10000);
       
       setUndoTimeoutId(timeoutId);
@@ -216,8 +228,6 @@ const Teachers = () => {
       
     } catch (error) {
       console.error("Error deleting teachers:", error);
-      // Restore teachers on error
-      setTeachers([...teachers]);
       toast({
         title: "Error",
         description: "Failed to delete teachers.",
@@ -230,26 +240,14 @@ const Teachers = () => {
     try {
       if (deletedTeachers.length === 0) return;
       
-      // Clear the timeout
+      // Clear the timeout to prevent permanent deletion
       if (undoTimeoutId) {
         clearTimeout(undoTimeoutId);
         setUndoTimeoutId(null);
       }
       
-      // Restore to database
-      const { error } = await supabase
-        .from('teachers')
-        .insert(deletedTeachers.map(teacher => ({
-          id: teacher.id,
-          name: teacher.name,
-          email: teacher.email,
-          specialization: teacher.specialization,
-        })));
-      
-      if (error) throw error;
-      
-      // Restore to UI
-      setTeachers([...teachers, ...deletedTeachers]);
+      // Restore to UI (no need to restore to database since it wasn't deleted yet)
+      setTeachers(prev => [...prev, ...deletedTeachers]);
       setDeletedTeachers([]);
       
       toast({
