@@ -2,6 +2,7 @@ import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
   Calendar,
   GraduationCap,
@@ -78,17 +79,17 @@ const Sidebar = () => {
   return (
     <>
       {/* Mobile Navigation Bar */}
-      <div className="flex items-center justify-between p-4 border-b md:hidden bg-white">
+      <div className="flex items-center justify-between p-4 border-b md:hidden bg-card border-border">
         <div className="flex items-center">
-          <span className="font-bold text-xl text-brand-700">ACADSYNC</span>
+          <span className="font-bold text-xl text-primary">ACADSYNC</span>
         </div>
         <button
-          className="p-2 rounded-md hover:bg-gray-100"
+          className="p-2 rounded-md hover:bg-accent"
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            className="h-6 w-6"
+            className="h-6 w-6 text-foreground"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -115,22 +116,22 @@ const Sidebar = () => {
       {/* Mobile Menu */}
       <div
         className={cn(
-          "fixed inset-0 z-50 bg-white transform transition-transform duration-300 ease-in-out md:hidden",
+          "fixed inset-0 z-50 bg-card transform transition-transform duration-300 ease-in-out md:hidden",
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
         <div className="flex flex-col h-full">
-          <div className="flex items-center justify-between p-4 border-b">
+          <div className="flex items-center justify-between p-4 border-b border-border">
             <div className="flex items-center">
-              <span className="font-bold text-xl text-brand-700">ACADSYNC</span>
+              <span className="font-bold text-xl text-primary">ACADSYNC</span>
             </div>
             <button
-              className="p-2 rounded-md hover:bg-gray-100"
+              className="p-2 rounded-md hover:bg-accent"
               onClick={() => setIsMobileMenuOpen(false)}
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6"
+                className="h-6 w-6 text-foreground"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -153,8 +154,8 @@ const Sidebar = () => {
                   className={cn(
                     "flex items-center px-4 py-3 text-sm font-medium rounded-md group",
                     location.pathname === item.href
-                      ? "bg-brand-100 text-brand-700"
-                      : "text-gray-600 hover:bg-gray-100"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                   )}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
@@ -162,8 +163,8 @@ const Sidebar = () => {
                     className={cn(
                       "mr-3 h-5 w-5",
                       location.pathname === item.href
-                        ? "text-brand-700"
-                        : "text-gray-400"
+                        ? "text-primary-foreground"
+                        : "text-muted-foreground"
                     )}
                   />
                   {item.title}
@@ -172,10 +173,13 @@ const Sidebar = () => {
             </nav>
           </div>
           {/* Mobile Sign Out */}
-          <div className="border-t p-4">
+          <div className="border-t border-border p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <ThemeToggle />
+            </div>
             <button
               onClick={signOut}
-              className="flex items-center px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 rounded-md w-full"
+              className="flex items-center px-4 py-3 text-sm font-medium text-destructive hover:bg-destructive/10 rounded-md w-full"
             >
               <LogOut className="mr-3 h-5 w-5" />
               Sign Out
@@ -186,10 +190,10 @@ const Sidebar = () => {
 
       {/* Desktop Sidebar */}
       <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0">
-        <div className="flex-1 flex flex-col min-h-0 border-r border-gray-200 bg-white">
+        <div className="flex-1 flex flex-col min-h-0 border-r border-border bg-card">
           <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
             <div className="flex items-center flex-shrink-0 px-4 mb-6">
-              <span className="font-bold text-xl text-brand-700">ACADSYNC</span>
+              <span className="font-bold text-xl text-primary">ACADSYNC</span>
             </div>
             <nav className="mt-5 flex-1 px-3 space-y-1">
               {mainNavItems.map((item) => (
@@ -199,16 +203,16 @@ const Sidebar = () => {
                   className={cn(
                     "group flex items-center px-4 py-3 text-sm font-medium rounded-md",
                     location.pathname === item.href
-                      ? "bg-brand-100 text-brand-700"
-                      : "text-gray-600 hover:bg-gray-100"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                   )}
                 >
                   <item.icon
                     className={cn(
                       "mr-3 h-5 w-5",
                       location.pathname === item.href
-                        ? "text-brand-700"
-                        : "text-gray-400"
+                        ? "text-primary-foreground"
+                        : "text-muted-foreground"
                     )}
                   />
                   {item.title}
@@ -216,27 +220,30 @@ const Sidebar = () => {
               ))}
             </nav>
           </div>
-          <div className="flex-shrink-0 flex border-t border-gray-200 p-4 flex-col space-y-2">
+          <div className="flex-shrink-0 flex border-t border-border p-4 flex-col space-y-2">
+            <div className="flex items-center justify-between mb-2">
+              <ThemeToggle />
+            </div>
             <Link
               to="/settings"
               className={cn(
                 "flex items-center px-4 py-3 text-sm font-medium rounded-md w-full",
                 location.pathname === "/settings"
-                  ? "bg-brand-100 text-brand-700"
-                  : "text-gray-600 hover:bg-gray-100"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
               )}
             >
               <Settings className={cn(
                 "mr-3 h-5 w-5",
                 location.pathname === "/settings"
-                  ? "text-brand-700"
-                  : "text-gray-400"
+                  ? "text-primary-foreground"
+                  : "text-muted-foreground"
               )} />
               Settings
             </Link>
             <button
               onClick={signOut}
-              className="flex items-center px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 rounded-md w-full"
+              className="flex items-center px-4 py-3 text-sm font-medium text-destructive hover:bg-destructive/10 rounded-md w-full"
             >
               <LogOut className="mr-3 h-5 w-5" />
               Sign Out

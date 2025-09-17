@@ -45,7 +45,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background text-foreground">
       <Sidebar />
       <div className="md:pl-64 flex flex-col flex-1">
         <main className="flex-1">
