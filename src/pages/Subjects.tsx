@@ -26,10 +26,11 @@ const Subjects = () => {
   const [loading, setLoading] = React.useState(true);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
-  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = React.useState(false);
   const [isLabDialogOpen, setIsLabDialogOpen] = React.useState(false);
   const [isTeacherDialogOpen, setIsTeacherDialogOpen] = React.useState(false);
   const [currentSubject, setCurrentSubject] = React.useState<Subject | null>(null);
+  const [deletedSubjects, setDeletedSubjects] = React.useState<Subject[]>([]);
+  const [undoTimeoutId, setUndoTimeoutId] = React.useState<NodeJS.Timeout | null>(null);
 
   const fetchData = React.useCallback(async () => {
     try {
@@ -203,32 +204,105 @@ const Subjects = () => {
 
   const handleBulkDelete = async () => {
     try {
-      for (const subject of selectedSubjects) {
-        await supabase
-          .from('subject_class_assignments')
-          .delete()
-          .eq('subject_id', subject.id);
-      }
-
-      const subjectIds = selectedSubjects.map(s => s.id);
-      const { error } = await supabase
-        .from('subjects')
-        .delete()
-        .in('id', subjectIds);
+      const subjectsToDelete = [...selectedSubjects];
+      const subjectIds = subjectsToDelete.map(s => s.id);
       
-      if (error) throw error;
-      await fetchData();
-      toast({
-        title: "Success",
-        description: `${selectedSubjects.length} subjects deleted successfully.`,
-      });
-      setIsBulkDeleteDialogOpen(false);
+      // Remove from UI immediately
+      setSubjects(subjects.filter(s => !subjectIds.includes(s.id)));
+      setDeletedSubjects(subjectsToDelete);
       setSelectedSubjects([]);
+      
+      // Clear any existing timeout
+      if (undoTimeoutId) {
+        clearTimeout(undoTimeoutId);
+      }
+      
+      // Set up undo timeout - delete from database after 10 seconds
+      const timeoutId = setTimeout(async () => {
+        try {
+          // Delete assignments first
+          for (const subject of subjectsToDelete) {
+            await supabase
+              .from('subject_class_assignments')
+              .delete()
+              .eq('subject_id', subject.id);
+          }
+
+          // Delete subjects
+          const { error } = await supabase
+            .from('subjects')
+            .delete()
+            .in('id', subjectIds);
+          
+          if (error) {
+            console.error("Error permanently deleting subjects:", error);
+            // If permanent deletion fails, restore the subjects
+            setSubjects(prev => [...prev, ...subjectsToDelete]);
+            toast({
+              title: "Error",
+              description: "Failed to permanently delete subjects. They have been restored.",
+              variant: "destructive",
+            });
+          }
+        } catch (error) {
+          console.error("Error in permanent deletion:", error);
+        } finally {
+          setDeletedSubjects([]);
+          setUndoTimeoutId(null);
+        }
+      }, 10000);
+      
+      setUndoTimeoutId(timeoutId);
+      
+      // Show undo toast
+      toast({
+        title: "Subjects deleted",
+        description: `${subjectsToDelete.length} subject${subjectsToDelete.length > 1 ? 's' : ''} deleted successfully.`,
+        action: (
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleUndoDelete}
+          >
+            Undo
+          </Button>
+        ),
+      });
+      
     } catch (error) {
       console.error("Error deleting subjects:", error);
       toast({
         title: "Error",
         description: "Failed to delete subjects.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUndoDelete = async () => {
+    try {
+      if (deletedSubjects.length === 0) return;
+      
+      // Clear the timeout to prevent permanent deletion
+      if (undoTimeoutId) {
+        clearTimeout(undoTimeoutId);
+        setUndoTimeoutId(null);
+      }
+      
+      // Restore to UI (no need to restore to database since it wasn't deleted yet)
+      setSubjects(prev => [...prev, ...deletedSubjects]);
+      setDeletedSubjects([]);
+      
+      toast({
+        title: "Restored",
+        description: "Subjects have been restored successfully.",
+      });
+      
+    } catch (error) {
+      console.error("Error restoring subjects:", error);
+      toast({
+        title: "Error",
+        description: "Failed to restore subjects.",
         variant: "destructive",
       });
     }
@@ -310,7 +384,7 @@ const Subjects = () => {
         ]}
         selectedItems={selectedSubjects}
         onSelectionChange={setSelectedSubjects}
-        onBulkDelete={() => setIsBulkDeleteDialogOpen(true)}
+        onBulkDelete={handleBulkDelete}
         isLoading={loading}
       />
 
@@ -342,24 +416,6 @@ const Subjects = () => {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isBulkDeleteDialogOpen} onOpenChange={setIsBulkDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirm Bulk Deletion</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete {selectedSubjects.length} selected subject{selectedSubjects.length > 1 ? 's' : ''}? This will also delete all associated class assignments. This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsBulkDeleteDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleBulkDelete}>
-              Delete {selectedSubjects.length} Subject{selectedSubjects.length > 1 ? 's' : ''}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {currentSubject && (
         <>

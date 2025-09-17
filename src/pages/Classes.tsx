@@ -30,8 +30,9 @@ const Classes = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
-  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = React.useState(false);
   const [currentClass, setCurrentClass] = React.useState<Class | null>(null);
+  const [deletedClasses, setDeletedClasses] = React.useState<Class[]>([]);
+  const [undoTimeoutId, setUndoTimeoutId] = React.useState<NodeJS.Timeout | null>(null);
   const [formData, setFormData] = React.useState({
     name: "",
     year_id: "",
@@ -285,35 +286,105 @@ const Classes = () => {
 
   const handleBulkDelete = async () => {
     try {
-      // Delete batches for selected classes first
-      for (const classItem of selectedClasses) {
-        await supabase
-          .from('batches')
-          .delete()
-          .eq('class_id', classItem.id);
-      }
-
-      // Delete the classes
-      const classIds = selectedClasses.map(c => c.id);
-      const { error } = await supabase
-        .from('classes')
-        .delete()
-        .in('id', classIds);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: `${selectedClasses.length} classes deleted successfully`,
-      });
-      setIsBulkDeleteDialogOpen(false);
+      const classesToDelete = [...selectedClasses];
+      const classIds = classesToDelete.map(c => c.id);
+      
+      // Remove from UI immediately
+      setClasses(classes.filter(c => !classIds.includes(c.id)));
+      setDeletedClasses(classesToDelete);
       setSelectedClasses([]);
-      fetchClasses();
+      
+      // Clear any existing timeout
+      if (undoTimeoutId) {
+        clearTimeout(undoTimeoutId);
+      }
+      
+      // Set up undo timeout - delete from database after 10 seconds
+      const timeoutId = setTimeout(async () => {
+        try {
+          // Delete batches for selected classes first
+          for (const classItem of classesToDelete) {
+            await supabase
+              .from('batches')
+              .delete()
+              .eq('class_id', classItem.id);
+          }
+
+          // Delete the classes
+          const { error } = await supabase
+            .from('classes')
+            .delete()
+            .in('id', classIds);
+
+          if (error) {
+            console.error("Error permanently deleting classes:", error);
+            // If permanent deletion fails, restore the classes
+            setClasses(prev => [...prev, ...classesToDelete]);
+            toast({
+              title: "Error",
+              description: "Failed to permanently delete classes. They have been restored.",
+              variant: "destructive",
+            });
+          }
+        } catch (error) {
+          console.error("Error in permanent deletion:", error);
+        } finally {
+          setDeletedClasses([]);
+          setUndoTimeoutId(null);
+        }
+      }, 10000);
+      
+      setUndoTimeoutId(timeoutId);
+      
+      // Show undo toast
+      toast({
+        title: "Classes deleted",
+        description: `${classesToDelete.length} class${classesToDelete.length > 1 ? 'es' : ''} deleted successfully.`,
+        action: (
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleUndoDelete}
+          >
+            Undo
+          </Button>
+        ),
+      });
+      
     } catch (error) {
       console.error("Error deleting classes:", error);
       toast({
         title: "Error",
-        description: "Failed to delete classes. Please try again.",
+        description: "Failed to delete classes.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUndoDelete = async () => {
+    try {
+      if (deletedClasses.length === 0) return;
+      
+      // Clear the timeout to prevent permanent deletion
+      if (undoTimeoutId) {
+        clearTimeout(undoTimeoutId);
+        setUndoTimeoutId(null);
+      }
+      
+      // Restore to UI (no need to restore to database since it wasn't deleted yet)
+      setClasses(prev => [...prev, ...deletedClasses]);
+      setDeletedClasses([]);
+      
+      toast({
+        title: "Restored",
+        description: "Classes have been restored successfully.",
+      });
+      
+    } catch (error) {
+      console.error("Error restoring classes:", error);
+      toast({
+        title: "Error",
+        description: "Failed to restore classes.",
         variant: "destructive",
       });
     }
@@ -486,7 +557,7 @@ const Classes = () => {
         columns={columns} 
         selectedItems={selectedClasses}
         onSelectionChange={setSelectedClasses}
-        onBulkDelete={() => setIsBulkDeleteDialogOpen(true)}
+        onBulkDelete={handleBulkDelete}
         isLoading={loading}
       />
 
@@ -732,25 +803,6 @@ const Classes = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Bulk Delete Confirmation Dialog */}
-      <Dialog open={isBulkDeleteDialogOpen} onOpenChange={setIsBulkDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirm Bulk Deletion</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete {selectedClasses.length} selected class{selectedClasses.length > 1 ? 'es' : ''}? This will also delete all associated batches. This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsBulkDeleteDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleBulkDelete}>
-              Delete {selectedClasses.length} Class{selectedClasses.length > 1 ? 'es' : ''}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
