@@ -19,8 +19,9 @@ const Teachers = () => {
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const [currentTeacher, setCurrentTeacher] = useState<Teacher | null>(null);
+  const [deletedTeachers, setDeletedTeachers] = useState<Teacher[]>([]);
+  const [undoTimeoutId, setUndoTimeoutId] = useState<NodeJS.Timeout | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -167,6 +168,105 @@ const Teachers = () => {
     setIsDeleteDialogOpen(true);
   };
 
+  const handleBulkDelete = async () => {
+    try {
+      const teachersToDelete = [...selectedTeachers];
+      const teacherIds = teachersToDelete.map(t => t.id);
+      
+      // Remove from UI immediately
+      setTeachers(teachers.filter(t => !teacherIds.includes(t.id)));
+      setDeletedTeachers(teachersToDelete);
+      setSelectedTeachers([]);
+      
+      // Delete from database
+      const { error } = await supabase
+        .from('teachers')
+        .delete()
+        .in('id', teacherIds);
+      
+      if (error) throw error;
+      
+      // Clear any existing timeout
+      if (undoTimeoutId) {
+        clearTimeout(undoTimeoutId);
+      }
+      
+      // Set up undo timeout
+      const timeoutId = setTimeout(() => {
+        setDeletedTeachers([]);
+        setUndoTimeoutId(null);
+      }, 10000);
+      
+      setUndoTimeoutId(timeoutId);
+      
+      // Show undo toast
+      toast({
+        title: "Teachers deleted",
+        description: `${teachersToDelete.length} teacher${teachersToDelete.length > 1 ? 's' : ''} deleted successfully.`,
+        action: (
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleUndoDelete}
+          >
+            Undo
+          </Button>
+        ),
+      });
+      
+    } catch (error) {
+      console.error("Error deleting teachers:", error);
+      // Restore teachers on error
+      setTeachers([...teachers]);
+      toast({
+        title: "Error",
+        description: "Failed to delete teachers.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUndoDelete = async () => {
+    try {
+      if (deletedTeachers.length === 0) return;
+      
+      // Clear the timeout
+      if (undoTimeoutId) {
+        clearTimeout(undoTimeoutId);
+        setUndoTimeoutId(null);
+      }
+      
+      // Restore to database
+      const { error } = await supabase
+        .from('teachers')
+        .insert(deletedTeachers.map(teacher => ({
+          id: teacher.id,
+          name: teacher.name,
+          email: teacher.email,
+          specialization: teacher.specialization,
+        })));
+      
+      if (error) throw error;
+      
+      // Restore to UI
+      setTeachers([...teachers, ...deletedTeachers]);
+      setDeletedTeachers([]);
+      
+      toast({
+        title: "Restored",
+        description: "Teachers have been restored successfully.",
+      });
+      
+    } catch (error) {
+      console.error("Error restoring teachers:", error);
+      toast({
+        title: "Error",
+        description: "Failed to restore teachers.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const resetForm = () => {
     setCurrentTeacher(null);
     setFormData({
@@ -234,7 +334,7 @@ const Teachers = () => {
         columns={columns}
         selectedItems={selectedTeachers}
         onSelectionChange={setSelectedTeachers}
-        onBulkDelete={() => setIsBulkDeleteDialogOpen(true)}
+        onBulkDelete={handleBulkDelete}
         isLoading={loading}
       />
 
