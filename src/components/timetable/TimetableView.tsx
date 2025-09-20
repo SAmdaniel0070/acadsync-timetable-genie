@@ -118,7 +118,7 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
 
   // Helper to get the color for a class (for visual distinction)
   const getClassColor = (classId: string) => {
-    return classColorMap[classId]?.colorClass || "bg-gray-100 border-gray-200";
+    return classColorMap[classId]?.colorClass || "bg-muted border-border";
   };
 
   // Find a lesson for a specific day and time slot
@@ -167,7 +167,7 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
     // If it's a break, render a break cell
     if (timeSlot.isBreak) {
       return (
-        <div className="h-full min-h-20 flex items-center justify-center bg-gray-100 text-gray-500 text-xs">
+        <div className="h-full min-h-20 flex items-center justify-center bg-muted/50 text-muted-foreground text-xs">
           Break
         </div>
       );
@@ -182,13 +182,13 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
       return (
         <div className="h-full min-h-20 p-1 overflow-y-auto">
           {lessonsInThisSlot.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-gray-400 text-xs">
+            <div className="h-full flex items-center justify-center text-muted-foreground text-xs">
               {editMode === "edit" ? (
                 <Button 
                   variant="ghost" 
                   size="sm" 
                   onClick={() => handleAddLesson(day, timeSlot.id)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-muted-foreground hover:text-foreground"
                 >
                   <Plus className="h-4 w-4" />
                   Add
@@ -216,12 +216,12 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
                       </span>
                     )}
                   </div>
-                  <div className="text-xs text-gray-500">
-                    {getTeacherName(lesson.teacherId)}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {getClassroomName(lesson.classroomId)}
-                  </div>
+                   <div className="text-xs text-muted-foreground">
+                     {getTeacherName(lesson.teacherId)}
+                   </div>
+                   <div className="text-xs text-muted-foreground">
+                     {getClassroomName(lesson.classroomId)}
+                   </div>
                   {editMode === "edit" && (
                     <Button
                       variant="ghost"
@@ -235,15 +235,15 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
                 </div>
               ))}
               {editMode === "edit" && (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => handleAddLesson(day, timeSlot.id)}
-                  className="w-full text-xs text-gray-400 hover:text-gray-600"
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add
-                </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => handleAddLesson(day, timeSlot.id)}
+                    className="w-full text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add
+                  </Button>
               )}
             </div>
           )}
@@ -283,7 +283,7 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
                 <div className="text-xs">{getTeacherName(lesson.teacherId)}</div>
               )}
               {view !== "classroom" && lesson.classroomId && (
-                <div className="text-xs text-gray-600">{getClassroomName(lesson.classroomId)}</div>
+                <div className="text-xs text-muted-foreground">{getClassroomName(lesson.classroomId)}</div>
               )}
               {editMode === "edit" && (
                 <Button
@@ -297,13 +297,13 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
               )}
             </div>
           ) : (
-            <div className="h-full flex items-center justify-center text-gray-400 text-xs">
+            <div className="h-full flex items-center justify-center text-muted-foreground text-xs">
               {editMode === "edit" ? (
                 <Button 
                   variant="ghost" 
                   size="sm" 
                   onClick={() => handleAddLesson(day, timeSlot.id)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-muted-foreground hover:text-foreground"
                 >
                   <Plus className="h-4 w-4" />
                   Add
@@ -323,59 +323,59 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
       {/* Show color legend only for master view */}
       {view === "master" && <ClassColorLegend classes={classes} />}
       
-      <div className="bg-white rounded-md shadow overflow-auto">
-        <div className="min-w-[768px]">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr>
-                <th className="border p-2 bg-gray-50 w-24"></th>
-                {daysOfWeek.map((day) => (
-                  <th key={day} className="border p-2 bg-gray-50">
-                    {day}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {teachingTimeSlots.map((timeSlot, index) => {
-                // Find any break that should appear after this time slot
-                const nextBreak = breakTimeSlots.find(
-                  b => b.startTime === timeSlot.endTime
-                );
-                
-                return (
-                  <React.Fragment key={timeSlot.id}>
-                    <tr>
-                      <td className="border p-2 bg-gray-50 text-sm font-medium">
-                        {timeSlot.startTime} - {timeSlot.endTime}
-                      </td>
-                      {daysOfWeek.map((_, dayIndex) => (
-                        <td key={`${timeSlot.id}-${dayIndex}`} className="border">
-                          {renderCell(dayIndex, timeSlot)}
-                        </td>
-                      ))}
-                    </tr>
-                    
-                    {/* Render break row if there's a break after this slot */}
-                    {nextBreak && (
-                      <tr className="bg-gray-50">
-                        <td className="border p-2 text-sm font-medium">
-                          {nextBreak.startTime} - {nextBreak.endTime}
+        <div className="bg-card rounded-md shadow overflow-auto">
+          <div className="min-w-[768px]">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr>
+                  <th className="border border-border p-2 bg-muted/50 w-24 text-foreground"></th>
+                  {daysOfWeek.map((day) => (
+                    <th key={day} className="border border-border p-2 bg-muted/50 text-foreground">
+                      {day}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {teachingTimeSlots.map((timeSlot, index) => {
+                  // Find any break that should appear after this time slot
+                  const nextBreak = breakTimeSlots.find(
+                    b => b.startTime === timeSlot.endTime
+                  );
+                  
+                  return (
+                    <div key={timeSlot.id}>
+                      <tr>
+                        <td className="border border-border p-2 bg-muted/50 text-sm font-medium text-foreground">
+                          {timeSlot.startTime} - {timeSlot.endTime}
                         </td>
                         {daysOfWeek.map((_, dayIndex) => (
-                          <td key={`break-${nextBreak.id}-${dayIndex}`} className="border">
-                            {renderCell(dayIndex, nextBreak)}
+                          <td key={`${timeSlot.id}-${dayIndex}`} className="border border-border">
+                            {renderCell(dayIndex, timeSlot)}
                           </td>
                         ))}
                       </tr>
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
+                      
+                      {/* Render break row if there's a break after this slot */}
+                      {nextBreak && (
+                        <tr className="bg-muted/50">
+                          <td className="border border-border p-2 text-sm font-medium text-foreground">
+                            {nextBreak.startTime} - {nextBreak.endTime}
+                          </td>
+                          {daysOfWeek.map((_, dayIndex) => (
+                            <td key={`break-${nextBreak.id}-${dayIndex}`} className="border border-border">
+                              {renderCell(dayIndex, nextBreak)}
+                            </td>
+                          ))}
+                        </tr>
+                      )}
+                    </div>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
 
       {/* Edit or Add Dialog */}
       {(editingLesson !== null || addingLessonAt !== null) && (

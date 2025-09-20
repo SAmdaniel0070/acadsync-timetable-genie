@@ -2,7 +2,7 @@
 import React from "react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { TimetableService } from "@/services/timetableService";
 import { Download, Mail, Share2 } from "lucide-react";
 import { 

@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Trash2 } from "lucide-react";
 import { Teacher, Batch, Subject, BatchTeacherAssignment } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 interface TeacherAssignmentDialogProps {
   open: boolean;

@@ -64,7 +64,7 @@ export const TimetablePreview: React.FC<TimetablePreviewProps> = ({
   const classColorMap = React.useMemo(() => getClassColorMap(classes), [classes]);
 
   const getClassColor = (classId: string) => {
-    return classColorMap[classId]?.colorClass || "bg-gray-100 border-gray-200";
+    return classColorMap[classId]?.colorClass || "bg-muted border-border";
   };
 
   // Find a lesson for a specific day and time slot
@@ -86,7 +86,7 @@ export const TimetablePreview: React.FC<TimetablePreviewProps> = ({
       return (
         <div className="h-12 p-0.5 overflow-hidden">
           {lessonsInThisSlot.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-gray-400 text-xs">
+            <div className="h-full flex items-center justify-center text-muted-foreground text-xs">
               -
             </div>
           ) : (
@@ -108,7 +108,7 @@ export const TimetablePreview: React.FC<TimetablePreviewProps> = ({
                 </div>
               ))}
               {lessonsInThisSlot.length > 2 && (
-                <div className="text-xs text-gray-500 text-center">
+                <div className="text-xs text-muted-foreground text-center">
                   +{lessonsInThisSlot.length - 2}
                 </div>
               )}
@@ -139,7 +139,7 @@ export const TimetablePreview: React.FC<TimetablePreviewProps> = ({
               )}
             </div>
           ) : (
-            <div className="h-full flex items-center justify-center text-gray-400 text-xs">
+            <div className="h-full flex items-center justify-center text-muted-foreground text-xs">
               -
             </div>
           )}
@@ -149,14 +149,14 @@ export const TimetablePreview: React.FC<TimetablePreviewProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-md border overflow-hidden">
+    <div className="bg-card rounded-md border overflow-hidden">
       <div className="text-xs">
         <table className="w-full border-collapse">
           <thead>
             <tr>
-              <th className="border p-1 bg-gray-50 text-xs w-16">Time</th>
+              <th className="border border-border p-1 bg-muted/50 text-xs w-16">Time</th>
               {daysOfWeek.map((day) => (
-                <th key={day} className="border p-1 bg-gray-50 text-xs">
+                <th key={day} className="border border-border p-1 bg-muted/50 text-xs">
                   {day}
                 </th>
               ))}
@@ -165,7 +165,7 @@ export const TimetablePreview: React.FC<TimetablePreviewProps> = ({
           <tbody>
             {compactTimeSlots.map((timeSlot) => (
               <tr key={timeSlot.id}>
-                <td className="border p-1 bg-gray-50 text-xs font-medium">
+                <td className="border border-border p-1 bg-muted/50 text-xs font-medium">
                   <div className="text-xs">
                     {timeSlot.startTime}
                   </div>
@@ -174,7 +174,7 @@ export const TimetablePreview: React.FC<TimetablePreviewProps> = ({
                   </div>
                 </td>
                 {daysOfWeek.map((_, dayIndex) => (
-                  <td key={`${timeSlot.id}-${dayIndex}`} className="border">
+                  <td key={`${timeSlot.id}-${dayIndex}`} className="border border-border">
                     {renderCell(dayIndex, timeSlot)}
                   </td>
                 ))}
@@ -184,7 +184,7 @@ export const TimetablePreview: React.FC<TimetablePreviewProps> = ({
         </table>
       </div>
       {timeSlots.filter(slot => !slot.isBreak).length > 4 && (
-        <div className="p-2 text-center text-xs text-gray-500 bg-gray-50 border-t">
+        <div className="p-2 text-center text-xs text-muted-foreground bg-muted/50 border-t">
           ... and {timeSlots.filter(slot => !slot.isBreak).length - 4} more time slots
         </div>
       )}

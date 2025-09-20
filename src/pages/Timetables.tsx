@@ -2,7 +2,7 @@ import React from "react";
 import { PageHeader } from "@/components/ui/page-header";
 import { TimetableService } from "@/services/timetableService";
 import { Timetable, Class, Teacher, Subject, TimeSlot, TimetableView as TimetableViewType, EditMode, Lesson, Classroom } from "@/types";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { TimetableTabs } from "@/components/timetable/TimetableTabs";
 import { TimetableActions } from "@/components/timetable/TimetableActions";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";

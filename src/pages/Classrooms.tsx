@@ -6,7 +6,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { Classroom } from "@/types";
 import { TimetableService } from "@/services/timetableService";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { Plus, PenSquare, Trash2, BuildingIcon } from "lucide-react";
 import { ClassroomDialog } from "@/components/classroom/ClassroomDialog";
 import { 

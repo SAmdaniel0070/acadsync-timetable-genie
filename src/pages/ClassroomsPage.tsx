@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Building } from "lucide-react";
 import { DataTable } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { ClassroomDialog } from "@/components/classroom/ClassroomDialog";
 import { Classroom } from "@/types";
 import { DataService } from "@/services/mockData";
