@@ -18,9 +18,9 @@ export function DataTable<T extends { id: string }>(props: DataTableProps<T>) {
 
   if (isLoading) {
     return (
-      <div className="w-full overflow-auto bg-white rounded-md shadow">
+      <div className="w-full overflow-auto bg-card rounded-md shadow">
         <div className="p-4 flex items-center justify-center h-32">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-700"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand"></div>
         </div>
       </div>
     );
@@ -28,33 +28,33 @@ export function DataTable<T extends { id: string }>(props: DataTableProps<T>) {
 
   if (data.length === 0) {
     return (
-      <div className="w-full overflow-auto bg-white rounded-md shadow">
-        <div className="p-4 text-center text-gray-500">No data available</div>
+      <div className="w-full overflow-auto bg-card rounded-md shadow">
+        <div className="p-4 text-center text-muted-foreground">No data available</div>
       </div>
     );
   }
 
   return (
-    <div className="w-full overflow-auto bg-white rounded-md shadow">
+    <div className="w-full overflow-auto bg-card rounded-md shadow">
       <table className="w-full">
         <thead>
-          <tr className="bg-gray-50 border-b border-gray-200">
+          <tr className="bg-muted/50 border-b border-border">
             {columns.map((column) => (
               <th
                 key={column.key.toString()}
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
               >
                 {column.title}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-200">
+        <tbody className="divide-y divide-border">
           {data.map((item) => (
             <tr
               key={item.id}
               className={cn(
-                "hover:bg-gray-50 transition-colors",
+                "hover:bg-muted/50 transition-colors",
                 onRowClick && "cursor-pointer"
               )}
               onClick={() => onRowClick && onRowClick(item)}
@@ -62,7 +62,7 @@ export function DataTable<T extends { id: string }>(props: DataTableProps<T>) {
               {columns.map((column) => (
                 <td
                   key={`${item.id}-${column.key.toString()}`}
-                  className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+                  className="px-6 py-4 whitespace-nowrap text-sm text-foreground"
                 >
                   {column.render
                     ? column.render(item)

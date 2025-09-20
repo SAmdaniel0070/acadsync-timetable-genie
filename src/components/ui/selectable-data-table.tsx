@@ -56,9 +56,9 @@ export function SelectableDataTable<T extends { id: string }>(props: SelectableD
 
   if (isLoading) {
     return (
-      <div className="w-full overflow-auto bg-white rounded-md shadow">
+      <div className="w-full overflow-auto bg-card rounded-md shadow">
         <div className="p-4 flex items-center justify-center h-32">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-700"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand"></div>
         </div>
       </div>
     );
@@ -66,8 +66,8 @@ export function SelectableDataTable<T extends { id: string }>(props: SelectableD
 
   if (data.length === 0) {
     return (
-      <div className="w-full overflow-auto bg-white rounded-md shadow">
-        <div className="p-4 text-center text-gray-500">No data available</div>
+      <div className="w-full overflow-auto bg-card rounded-md shadow">
+        <div className="p-4 text-center text-muted-foreground">No data available</div>
       </div>
     );
   }
@@ -76,11 +76,11 @@ export function SelectableDataTable<T extends { id: string }>(props: SelectableD
     <div className="space-y-4">
       {/* Selection Summary and Bulk Actions */}
       {selectedItems.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+        <div className="bg-brand/10 border border-brand/20 rounded-md p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <CheckSquare className="h-4 w-4 text-blue-600" />
-              <span className="text-sm font-medium text-blue-900">
+              <CheckSquare className="h-4 w-4 text-brand" />
+              <span className="text-sm font-medium text-foreground">
                 {selectedItems.length} item{selectedItems.length > 1 ? 's' : ''} selected
               </span>
             </div>
@@ -109,10 +109,10 @@ export function SelectableDataTable<T extends { id: string }>(props: SelectableD
       )}
 
       {/* Data Table */}
-      <div className="w-full overflow-auto bg-white rounded-md shadow">
+      <div className="w-full overflow-auto bg-card rounded-md shadow">
         <table className="w-full">
           <thead>
-            <tr className="bg-gray-50 border-b border-gray-200">
+            <tr className="bg-muted/50 border-b border-border">
               <th className="px-6 py-3 text-left">
                 <Checkbox
                   checked={isAllSelected || isPartiallySelected}
@@ -120,7 +120,7 @@ export function SelectableDataTable<T extends { id: string }>(props: SelectableD
                   aria-label="Select all items"
                 />
                 {isPartiallySelected && (
-                  <span className="ml-1 text-xs text-blue-600">
+                  <span className="ml-1 text-xs text-brand">
                     ({selectedItems.length})
                   </span>
                 )}
@@ -128,22 +128,22 @@ export function SelectableDataTable<T extends { id: string }>(props: SelectableD
               {columns.map((column) => (
                 <th
                   key={column.key.toString()}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
                 >
                   {column.title}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
+          <tbody className="divide-y divide-border">
             {data.map((item) => {
               const isSelected = isItemSelected(item);
               return (
                 <tr
                   key={item.id}
                   className={cn(
-                    "hover:bg-gray-50 transition-colors",
-                    isSelected && "bg-blue-50 hover:bg-blue-100",
+                    "hover:bg-muted/50 transition-colors",
+                    isSelected && "bg-brand/10 hover:bg-brand/20",
                     onRowClick && "cursor-pointer"
                   )}
                   onClick={(e) => {
@@ -164,7 +164,7 @@ export function SelectableDataTable<T extends { id: string }>(props: SelectableD
                   {columns.map((column) => (
                     <td
                       key={`${item.id}-${column.key.toString()}`}
-                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+                      className="px-6 py-4 whitespace-nowrap text-sm text-foreground"
                     >
                       {column.render
                         ? column.render(item)
