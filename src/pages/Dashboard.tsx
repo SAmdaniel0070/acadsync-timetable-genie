@@ -70,7 +70,7 @@ const Dashboard = () => {
           </CardContent>
           <Link 
             to="/classes" 
-            className="text-xs text-brand-600 hover:text-brand-700 px-8 pb-4 inline-block"
+            className="text-xs text-brand hover:text-brand-muted px-8 pb-4 inline-block"
           >
             Manage classes
           </Link>
@@ -88,7 +88,7 @@ const Dashboard = () => {
           </CardContent>
           <Link 
             to="/teachers" 
-            className="text-xs text-brand-600 hover:text-brand-700 px-8 pb-4 inline-block"
+            className="text-xs text-brand hover:text-brand-muted px-8 pb-4 inline-block"
           >
             Manage teachers
           </Link>
@@ -106,7 +106,7 @@ const Dashboard = () => {
           </CardContent>
           <Link 
             to="/subjects" 
-            className="text-xs text-brand-600 hover:text-brand-700 px-8 pb-4 inline-block"
+            className="text-xs text-brand hover:text-brand-muted px-8 pb-4 inline-block"
           >
             Manage subjects
           </Link>
@@ -124,7 +124,7 @@ const Dashboard = () => {
           </CardContent>
           <Link 
             to="/timings" 
-            className="text-xs text-brand-600 hover:text-brand-700 px-8 pb-4 inline-block"
+            className="text-xs text-brand hover:text-brand-muted px-8 pb-4 inline-block"
           >
             Manage time slots
           </Link>
@@ -140,7 +140,7 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Button variant="outline" asChild className="h-auto py-6 flex flex-col items-center justify-center">
                 <Link to="/timetables">
-                  <Calendar className="h-8 w-8 mb-3 text-brand-600" />
+                  <Calendar className="h-8 w-8 mb-3 text-brand" />
                   <span className="text-base font-medium">Generate Master Timetable</span>
                   <span className="text-xs text-muted-foreground mt-1">Create a comprehensive timetable for the entire institution</span>
                 </Link>
@@ -148,7 +148,7 @@ const Dashboard = () => {
               
               <Button variant="outline" asChild className="h-auto py-6 flex flex-col items-center justify-center">
                 <Link to="/timetables">
-                  <Users className="h-8 w-8 mb-3 text-brand-600" />
+                  <Users className="h-8 w-8 mb-3 text-brand" />
                   <span className="text-base font-medium">Teacher Timetables</span>
                   <span className="text-xs text-muted-foreground mt-1">View and generate timetables for individual teachers</span>
                 </Link>
@@ -156,7 +156,7 @@ const Dashboard = () => {
               
               <Button variant="outline" asChild className="h-auto py-6 flex flex-col items-center justify-center">
                 <Link to="/timetables">
-                  <GraduationCap className="h-8 w-8 mb-3 text-brand-600" />
+                  <GraduationCap className="h-8 w-8 mb-3 text-brand" />
                   <span className="text-base font-medium">Class Timetables</span>
                   <span className="text-xs text-muted-foreground mt-1">View and generate timetables for specific classes</span>
                 </Link>
@@ -164,7 +164,7 @@ const Dashboard = () => {
               
               <Button variant="outline" asChild className="h-auto py-6 flex flex-col items-center justify-center">
                 <Link to="/share">
-                  <Clock className="h-8 w-8 mb-3 text-brand-600" />
+                  <Clock className="h-8 w-8 mb-3 text-brand" />
                   <span className="text-base font-medium">Share Timetables</span>
                   <span className="text-xs text-muted-foreground mt-1">Share timetables via WhatsApp, email or download</span>
                 </Link>
@@ -180,7 +180,7 @@ const Dashboard = () => {
           <CardContent>
             <ol className="space-y-4 text-sm">
               <li className="flex space-x-3">
-                <span className="flex-shrink-0 h-6 w-6 flex items-center justify-center rounded-full bg-brand-100 text-brand-600 font-medium text-sm">1</span>
+                <span className="flex-shrink-0 h-6 w-6 flex items-center justify-center rounded-full bg-brand/10 text-brand font-medium text-sm">1</span>
                 <div>
                   <p className="font-medium">Set up Classes</p>
                   <p className="text-muted-foreground text-xs">Add the classes for your institution</p>
@@ -188,7 +188,7 @@ const Dashboard = () => {
               </li>
               
               <li className="flex space-x-3">
-                <span className="flex-shrink-0 h-6 w-6 flex items-center justify-center rounded-full bg-brand-100 text-brand-600 font-medium text-sm">2</span>
+                <span className="flex-shrink-0 h-6 w-6 flex items-center justify-center rounded-full bg-brand/10 text-brand font-medium text-sm">2</span>
                 <div>
                   <p className="font-medium">Add Teachers</p>
                   <p className="text-muted-foreground text-xs">Enter faculty information and subjects they teach</p>
@@ -196,7 +196,7 @@ const Dashboard = () => {
               </li>
               
               <li className="flex space-x-3">
-                <span className="flex-shrink-0 h-6 w-6 flex items-center justify-center rounded-full bg-brand-100 text-brand-600 font-medium text-sm">3</span>
+                <span className="flex-shrink-0 h-6 w-6 flex items-center justify-center rounded-full bg-brand/10 text-brand font-medium text-sm">3</span>
                 <div>
                   <p className="font-medium">Define Subjects</p>
                   <p className="text-muted-foreground text-xs">Add all subjects taught at your institution</p>
@@ -204,7 +204,7 @@ const Dashboard = () => {
               </li>
               
               <li className="flex space-x-3">
-                <span className="flex-shrink-0 h-6 w-6 flex items-center justify-center rounded-full bg-brand-100 text-brand-600 font-medium text-sm">4</span>
+                <span className="flex-shrink-0 h-6 w-6 flex items-center justify-center rounded-full bg-brand/10 text-brand font-medium text-sm">4</span>
                 <div>
                   <p className="font-medium">Set Time Slots</p>
                   <p className="text-muted-foreground text-xs">Define periods, including breaks and recesses</p>
@@ -212,7 +212,7 @@ const Dashboard = () => {
               </li>
               
               <li className="flex space-x-3">
-                <span className="flex-shrink-0 h-6 w-6 flex items-center justify-center rounded-full bg-brand-100 text-brand-600 font-medium text-sm">5</span>
+                <span className="flex-shrink-0 h-6 w-6 flex items-center justify-center rounded-full bg-brand/10 text-brand font-medium text-sm">5</span>
                 <div>
                   <p className="font-medium">Generate Timetables</p>
                   <p className="text-muted-foreground text-xs">Create and customize your institution's timetables</p>

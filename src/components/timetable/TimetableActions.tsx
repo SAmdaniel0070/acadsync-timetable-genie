@@ -39,7 +39,7 @@ export const TimetableActions: React.FC<TimetableActionsProps> = ({
         />
         <Label htmlFor="edit-mode" className="cursor-pointer">
           {editMode === "edit" ? (
-            <span className="flex items-center text-brand-600">
+            <span className="flex items-center text-brand">
               <Edit className="mr-1 h-4 w-4" />
               Editing Mode
             </span>
