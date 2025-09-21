@@ -664,6 +664,16 @@ export type Database = {
           updated_at: string
         }[]
       }
+      validate_share_token: {
+        Args: { token_to_check: string }
+        Returns: {
+          academic_year: string
+          name: string
+          timetable_id: string
+          timing_id: string
+          year_id: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
