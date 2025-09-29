@@ -356,7 +356,7 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
                     {daysOfWeek.map((_, dayIndex) => (
                       <td
                        key={`${timeSlot.id}-${dayIndex}`}
-                         className="border border-gray-300 p-1 align-top"
+                         className="border border-gray-300 p-1 align-top text-red-500"
                         >
                         {renderCell(dayIndex, timeSlot)}
                       </td>
