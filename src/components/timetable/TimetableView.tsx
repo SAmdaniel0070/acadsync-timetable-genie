@@ -319,66 +319,88 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
   };
 
   return (
-    <>{/* Show color legend only for master view */}
-{view === "master" && <ClassColorLegend classes={classes} />}
+  <>
+    {/* Show color legend only for master view */}
+    {view === "master" && <ClassColorLegend classes={classes} />}
 
-<div className="bg-card rounded-md shadow overflow-auto">
-  <div className="min-w-[768px]">
-    {/* table-fixed + w-full keeps header and body columns in sync */}
-    <table className="table-fixed w-full border-collapse">
-      <thead>
-        <tr>
-          {/* removed w-24 so the browser can distribute column widths evenly */}
-          <th className="border border-border p-2 bg-muted/50 text-foreground"></th>
-          {daysOfWeek.map((day) => (
-            <th
-              key={day}
-              className="border border-border p-2 bg-muted/50 text-foreground"
-            >
-              {day}
-            </th>
-          ))}
-        </tr>
-      </thead>
+    <div className="bg-card rounded-md shadow overflow-auto">
+      <div className="min-w-[768px]">
+        <table className="table-fixed w-full border-collapse">
+          <thead>
+            <tr>
+              <th className="border border-border p-2 bg-muted/50 text-foreground"></th>
+              {daysOfWeek.map((day) => (
+                <th
+                  key={day}
+                  className="border border-border p-2 bg-muted/50 text-foreground"
+                >
+                  {day}
+                </th>
+              ))}
+            </tr>
+          </thead>
 
-      <tbody>
-        {teachingTimeSlots.map((timeSlot) => {
-          // Find any break that should appear after this time slot
-          const nextBreak = breakTimeSlots.find(
-            (b) => b.startTime === timeSlot.endTime
-          );
+          <tbody>
+            {teachingTimeSlots.map((timeSlot) => {
+              const nextBreak = breakTimeSlots.find(
+                (b) => b.startTime === timeSlot.endTime
+              );
 
-          return (
-            /* React.Fragment keeps valid HTML: no <div> inside <tbody> */
-            <React.Fragment key={timeSlot.id}>
-              <tr>
-                <td className="border border-border p-2 bg-muted/50 text-sm font-medium text-foreground">
-                  {timeSlot.startTime} – {timeSlot.endTime}
-                </td>
-                {daysOfWeek.map((_, dayIndex) => (
-                  <td
-                    key={`${timeSlot.id}-${dayIndex}`}
-                    className="border border-border"
-                  >
-                    {re
+              return (
+                <React.Fragment key={timeSlot.id}>
+                  <tr>
+                    <td className="border border-border p-2 bg-muted/50 text-sm font-medium text-foreground">
+                      {timeSlot.startTime} – {timeSlot.endTime}
+                    </td>
+                    {daysOfWeek.map((_, dayIndex) => (
+                      <td
+                        key={`${timeSlot.id}-${dayIndex}`}
+                        className="border border-border"
+                      >
+                        {renderCell(dayIndex, timeSlot)}
+                      </td>
+                    ))}
+                  </tr>
 
-      {/* Edit or Add Dialog */}
-      {(editingLesson !== null || addingLessonAt !== null) && (
-        <TimetableEditDialog
-          open={isDialogOpen}
-          onOpenChange={setIsDialogOpen}
-          lesson={editingLesson}
-          day={addingLessonAt?.day ?? 0}
-          timeSlotId={addingLessonAt?.timeSlotId ?? ""}
-          teachers={teachers}
-          subjects={subjects}
-          classes={classes}
-          timeSlots={timeSlots}
-          onSave={handleSaveLesson}
-          onDelete={handleDeleteLesson}
-          onAdd={handleAddNewLesson}
-        />
-      )}
-    </>
-  );
-};
+                  {nextBreak && (
+                    <tr className="bg-muted/50">
+                      <td className="border border-border p-2 text-sm font-medium text-foreground">
+                        {nextBreak.startTime} – {nextBreak.endTime}
+                      </td>
+                      {daysOfWeek.map((_, dayIndex) => (
+                        <td
+                          key={`break-${nextBreak.id}-${dayIndex}`}
+                          className="border border-border"
+                        >
+                          {renderCell(dayIndex, nextBreak)}
+                        </td>
+                      ))}
+                    </tr>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {/* Edit or Add Dialog */}
+    {(editingLesson !== null || addingLessonAt !== null) && (
+      <TimetableEditDialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        lesson={editingLesson}
+        day={addingLessonAt?.day ?? 0}
+        timeSlotId={addingLessonAt?.timeSlotId ?? ""}
+        teachers={teachers}
+        subjects={subjects}
+        classes={classes}
+        timeSlots={timeSlots}
+        onSave={handleSaveLesson}
+        onDelete={handleDeleteLesson}
+        onAdd={handleAddNewLesson}
+      />
+    )}
+  </>
+);
