@@ -350,7 +350,7 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
                 <React.Fragment key={timeSlot.id}>
                   <tr>
                 
-                    <td className="border border-gray-300 p-2 bg-muted/50 text-sm font-medium text-foreground whitespace-nowrap">
+                    <td className="border border-gray-300 p-2 bg-muted/50 text-sm font-medium text-foreground whitespace-nowrap w-32">
                       {timeSlot.startTime} – {timeSlot.endTime}
                     </td>
                     {daysOfWeek.map((_, dayIndex) => (
