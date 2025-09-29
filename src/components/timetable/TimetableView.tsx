@@ -405,4 +405,4 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
     )}
   </>
 );
-]
+}
