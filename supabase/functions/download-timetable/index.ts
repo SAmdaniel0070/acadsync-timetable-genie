@@ -19,6 +19,8 @@ const handler = async (req: Request): Promise<Response> => {
     const timetableId = url.searchParams.get('id');
     const format = url.searchParams.get('format') || 'csv'; // csv, pdf, excel, json, html
 
+    console.log('Download request:', { timetableId, format });
+
     if (!timetableId) {
       return new Response(JSON.stringify({ error: 'Timetable ID required' }), {
         status: 400,
@@ -31,29 +33,76 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     );
 
-    // Fetch timetable data
-    const { data: timetable, error } = await supabase
+    // Fetch timetable data with all related information
+    const { data: timetableData, error: timetableError } = await supabase
       .from('timetables')
-      .select(`
-        *,
-        lessons (
-          *,
-          classes (name),
-          subjects (name, code),
-          teachers (name),
-          classrooms (name),
-          time_slots (start_time, end_time, slot_order)
-        )
-      `)
+      .select('*')
       .eq('id', timetableId)
       .single();
 
-    if (error || !timetable) {
+    if (timetableError || !timetableData) {
+      console.error('Timetable fetch error:', timetableError);
       return new Response(JSON.stringify({ error: 'Timetable not found' }), {
         status: 404,
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
     }
+
+    // Fetch all lessons for this timetable
+    const { data: lessons, error: lessonsError } = await supabase
+      .from('lessons')
+      .select('*')
+      .eq('timetable_id', timetableId);
+
+    if (lessonsError) {
+      console.error('Lessons fetch error:', lessonsError);
+      return new Response(JSON.stringify({ error: 'Failed to fetch lessons' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
+    }
+
+    // Fetch all related data
+    const classIds = [...new Set(lessons?.map((l: any) => l.class_id))];
+    const subjectIds = [...new Set(lessons?.map((l: any) => l.subject_id))];
+    const teacherIds = [...new Set(lessons?.map((l: any) => l.teacher_id))];
+    const classroomIds = [...new Set(lessons?.map((l: any) => l.classroom_id).filter(Boolean))];
+    const timeSlotIds = [...new Set(lessons?.map((l: any) => l.time_slot_id))];
+
+    const [classesData, subjectsData, teachersData, classroomsData, timeSlotsData] = await Promise.all([
+      supabase.from('classes').select('*').in('id', classIds),
+      supabase.from('subjects').select('*').in('id', subjectIds),
+      supabase.from('teachers').select('*').in('id', teacherIds),
+      classroomIds.length > 0 ? supabase.from('classrooms').select('*').in('id', classroomIds) : { data: [] },
+      supabase.from('time_slots').select('*').in('id', timeSlotIds),
+    ]);
+
+    // Create lookup maps
+    const classesMap = new Map((classesData.data || []).map((c: any) => [c.id, c]));
+    const subjectsMap = new Map((subjectsData.data || []).map((s: any) => [s.id, s]));
+    const teachersMap = new Map((teachersData.data || []).map((t: any) => [t.id, t]));
+    const classroomsMap = new Map((classroomsData.data || []).map((c: any) => [c.id, c]));
+    const timeSlotsMap = new Map((timeSlotsData.data || []).map((t: any) => [t.id, t]));
+
+    // Enrich lessons with related data
+    const enrichedLessons = (lessons || []).map((lesson: any) => ({
+      ...lesson,
+      classes: classesMap.get(lesson.class_id),
+      subjects: subjectsMap.get(lesson.subject_id),
+      teachers: teachersMap.get(lesson.teacher_id),
+      classrooms: classroomsMap.get(lesson.classroom_id),
+      time_slots: timeSlotsMap.get(lesson.time_slot_id),
+    }));
+
+    const timetable = {
+      ...timetableData,
+      lessons: enrichedLessons,
+    };
+
+    console.log('Timetable data prepared:', { 
+      name: timetable.name, 
+      lessonsCount: enrichedLessons.length 
+    });
 
     // Generate file based on format
     switch (format) {
@@ -128,28 +177,30 @@ const handler = async (req: Request): Promise<Response> => {
 };
 
 function generateCSV(timetable: any): string {
-  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   let csv = 'Day,Time,Subject,Code,Teacher,Class,Classroom\n';
 
   const lessonsByDay = groupLessonsByDay(timetable.lessons);
 
   days.forEach((day, dayIndex) => {
-    if (lessonsByDay[dayIndex]) {
-      lessonsByDay[dayIndex]
-        .sort((a: any, b: any) => a.time_slots.slot_order - b.time_slots.slot_order)
-        .forEach((lesson: any) => {
-          const row = [
-            day,
-            `${lesson.time_slots.start_time} - ${lesson.time_slots.end_time}`,
-            lesson.subjects.name,
-            lesson.subjects.code,
-            lesson.teachers.name,
-            lesson.classes.name,
-            lesson.classrooms?.name || 'TBA'
-          ].map(field => `"${field}"`).join(',');
-          
-          csv += row + '\n';
-        });
+    if (lessonsByDay[dayIndex] && lessonsByDay[dayIndex].length > 0) {
+      const sortedLessons = lessonsByDay[dayIndex]
+        .filter((lesson: any) => lesson.time_slots && lesson.subjects && lesson.teachers && lesson.classes)
+        .sort((a: any, b: any) => (a.time_slots?.slot_order || 0) - (b.time_slots?.slot_order || 0));
+      
+      sortedLessons.forEach((lesson: any) => {
+        const row = [
+          day,
+          `${lesson.time_slots.start_time} - ${lesson.time_slots.end_time}`,
+          lesson.subjects.name || 'N/A',
+          lesson.subjects.code || 'N/A',
+          lesson.teachers.name || 'N/A',
+          lesson.classes.name || 'N/A',
+          lesson.classrooms?.name || 'TBA'
+        ].map(field => `"${String(field).replace(/"/g, '""')}"`).join(',');
+        
+        csv += row + '\n';
+      });
     }
   });
 
@@ -157,71 +208,81 @@ function generateCSV(timetable: any): string {
 }
 
 function generateHTML(timetable: any): string {
-  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const lessonsByDay = groupLessonsByDay(timetable.lessons);
 
   let html = `
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
     <title>${timetable.name} - Timetable</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .header { text-align: center; margin-bottom: 30px; }
-        .day-section { margin-bottom: 30px; }
-        .day-title { font-size: 1.5em; font-weight: bold; color: #333; margin-bottom: 10px; }
-        .lesson { border: 1px solid #ddd; padding: 10px; margin-bottom: 5px; border-radius: 5px; }
-        .lesson-time { font-weight: bold; color: #666; }
-        .lesson-subject { font-size: 1.1em; color: #2563eb; }
-        .lesson-details { color: #666; font-size: 0.9em; }
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #2563eb; padding-bottom: 20px; }
+        .header h1 { color: #1e40af; margin: 0 0 10px 0; }
+        .header p { color: #666; margin: 5px 0; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; }
+        th, td { border: 1px solid #ddd; padding: 12px 8px; text-align: left; }
+        th { background-color: #2563eb; color: white; font-weight: bold; }
+        tr:nth-child(even) { background-color: #f9fafb; }
+        tr:hover { background-color: #eff6ff; }
+        .subject-cell { font-weight: 500; color: #1e40af; }
+        .time-cell { color: #666; font-size: 0.9em; white-space: nowrap; }
+        @media print {
+            body { margin: 0; background: white; }
+            .container { box-shadow: none; }
+        }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>${timetable.name}</h1>
-        <p>Academic Year: ${timetable.academic_year}</p>
-        <p>Generated on: ${new Date().toLocaleDateString()}</p>
-    </div>
+    <div class="container">
+        <div class="header">
+            <h1>${timetable.name || 'Timetable'}</h1>
+            <p>Academic Year: ${timetable.academic_year || 'N/A'}</p>
+            <p>Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
+        </div>
 
-    <table>
-        <thead>
-            <tr>
-                <th>Day</th>
-                <th>Time</th>
-                <th>Subject</th>
-                <th>Teacher</th>
-                <th>Class</th>
-                <th>Classroom</th>
-            </tr>
-        </thead>
-        <tbody>
+        <table>
+            <thead>
+                <tr>
+                    <th>Day</th>
+                    <th>Time</th>
+                    <th>Subject</th>
+                    <th>Teacher</th>
+                    <th>Class</th>
+                    <th>Classroom</th>
+                </tr>
+            </thead>
+            <tbody>
   `;
 
   days.forEach((day, dayIndex) => {
-    if (lessonsByDay[dayIndex]) {
-      lessonsByDay[dayIndex]
-        .sort((a: any, b: any) => a.time_slots.slot_order - b.time_slots.slot_order)
-        .forEach((lesson: any) => {
-          html += `
+    if (lessonsByDay[dayIndex] && lessonsByDay[dayIndex].length > 0) {
+      const sortedLessons = lessonsByDay[dayIndex]
+        .filter((lesson: any) => lesson.time_slots && lesson.subjects && lesson.teachers && lesson.classes)
+        .sort((a: any, b: any) => (a.time_slots?.slot_order || 0) - (b.time_slots?.slot_order || 0));
+      
+      sortedLessons.forEach((lesson: any) => {
+        html += `
             <tr>
-                <td>${day}</td>
-                <td>${lesson.time_slots.start_time} - ${lesson.time_slots.end_time}</td>
-                <td>${lesson.subjects.name} (${lesson.subjects.code})</td>
-                <td>${lesson.teachers.name}</td>
-                <td>${lesson.classes.name}</td>
+                <td><strong>${day}</strong></td>
+                <td class="time-cell">${lesson.time_slots.start_time} - ${lesson.time_slots.end_time}</td>
+                <td class="subject-cell">${lesson.subjects.name || 'N/A'} <span style="color: #666;">(${lesson.subjects.code || 'N/A'})</span></td>
+                <td>${lesson.teachers.name || 'N/A'}</td>
+                <td>${lesson.classes.name || 'N/A'}</td>
                 <td>${lesson.classrooms?.name || 'TBA'}</td>
             </tr>
-          `;
-        });
+        `;
+      });
     }
   });
 
   html += `
-        </tbody>
-    </table>
+            </tbody>
+        </table>
+    </div>
 </body>
 </html>
   `;
@@ -241,55 +302,86 @@ function groupLessonsByDay(lessons: any[]): { [key: number]: any[] } {
 
 function generatePDF(timetable: any): Uint8Array {
   const doc = new jsPDF();
-  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const lessonsByDay = groupLessonsByDay(timetable.lessons);
   
   // Add title
   doc.setFontSize(20);
-  doc.text(timetable.name, 20, 20);
+  doc.setFont(undefined, 'bold');
+  doc.text(timetable.name || 'Timetable', 105, 20, { align: 'center' });
   
-  doc.setFontSize(12);
-  doc.text(`Academic Year: ${timetable.academic_year}`, 20, 35);
-  doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 20, 45);
+  // Add metadata
+  doc.setFontSize(11);
+  doc.setFont(undefined, 'normal');
+  doc.text(`Academic Year: ${timetable.academic_year || 'N/A'}`, 105, 32, { align: 'center' });
+  doc.text(`Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, 105, 40, { align: 'center' });
   
-  let yPos = 65;
+  let yPos = 55;
   
   days.forEach((day, dayIndex) => {
     if (lessonsByDay[dayIndex] && lessonsByDay[dayIndex].length > 0) {
-      // Add day header
+      const sortedLessons = lessonsByDay[dayIndex]
+        .filter((lesson: any) => lesson.time_slots && lesson.subjects && lesson.teachers && lesson.classes)
+        .sort((a: any, b: any) => (a.time_slots?.slot_order || 0) - (b.time_slots?.slot_order || 0));
+      
+      if (sortedLessons.length === 0) return;
+      
+      // Check if we need a new page before starting a new day
+      if (yPos + (sortedLessons.length * 20) > 270) {
+        doc.addPage();
+        yPos = 20;
+      }
+      
+      // Add day header with background
+      doc.setFillColor(37, 99, 235);
+      doc.rect(15, yPos - 6, 180, 10, 'F');
+      doc.setTextColor(255, 255, 255);
       doc.setFontSize(14);
       doc.setFont(undefined, 'bold');
       doc.text(day, 20, yPos);
-      yPos += 10;
+      doc.setTextColor(0, 0, 0);
+      yPos += 12;
       
       // Add lessons for this day
-      doc.setFontSize(10);
+      doc.setFontSize(9);
       doc.setFont(undefined, 'normal');
       
-      const sortedLessons = lessonsByDay[dayIndex].sort((a: any, b: any) => 
-        a.time_slots.slot_order - b.time_slots.slot_order
-      );
-      
-      sortedLessons.forEach((lesson: any) => {
+      sortedLessons.forEach((lesson: any, index: number) => {
+        // Alternate background colors for readability
+        if (index % 2 === 0) {
+          doc.setFillColor(249, 250, 251);
+          doc.rect(15, yPos - 5, 180, 17, 'F');
+        }
+        
         const timeStr = `${lesson.time_slots.start_time} - ${lesson.time_slots.end_time}`;
-        const subjectStr = `${lesson.subjects.name} (${lesson.subjects.code})`;
-        const teacherStr = lesson.teachers.name;
-        const classStr = lesson.classes.name;
+        const subjectStr = `${lesson.subjects.name || 'N/A'} (${lesson.subjects.code || 'N/A'})`;
+        const teacherStr = lesson.teachers.name || 'N/A';
+        const classStr = lesson.classes.name || 'N/A';
         const roomStr = lesson.classrooms?.name || 'TBA';
         
-        doc.text(`${timeStr}: ${subjectStr}`, 25, yPos);
-        yPos += 7;
-        doc.text(`Teacher: ${teacherStr} | Class: ${classStr} | Room: ${roomStr}`, 30, yPos);
-        yPos += 10;
+        // Time and subject on first line
+        doc.setFont(undefined, 'bold');
+        doc.text(timeStr, 20, yPos);
+        doc.setFont(undefined, 'normal');
+        doc.text(subjectStr, 60, yPos);
+        yPos += 6;
+        
+        // Details on second line
+        doc.setFontSize(8);
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Teacher: ${teacherStr} | Class: ${classStr} | Room: ${roomStr}`, 20, yPos);
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(9);
+        yPos += 11;
         
         // Check if we need a new page
-        if (yPos > 270) {
+        if (yPos > 265) {
           doc.addPage();
           yPos = 20;
         }
       });
       
-      yPos += 10;
+      yPos += 8;
     }
   });
   
@@ -297,11 +389,28 @@ function generatePDF(timetable: any): Uint8Array {
 }
 
 function generateExcel(timetable: any): Uint8Array {
-  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const lessonsByDay = groupLessonsByDay(timetable.lessons);
   
   // Create workbook
   const wb = XLSX.utils.book_new();
+  
+  // Create summary info sheet
+  const infoData: any[][] = [
+    ['Timetable Name', timetable.name || 'N/A'],
+    ['Academic Year', timetable.academic_year || 'N/A'],
+    ['Generated On', new Date().toLocaleDateString()],
+    ['Generated At', new Date().toLocaleTimeString()],
+    ['Total Lessons', timetable.lessons?.length || 0],
+    [],
+    ['This workbook contains:'],
+    ['- All Lessons (combined view)'],
+    ['- Individual sheets for each day'],
+  ];
+  
+  const infoWs = XLSX.utils.aoa_to_sheet(infoData);
+  infoWs['!cols'] = [{ width: 20 }, { width: 40 }];
+  XLSX.utils.book_append_sheet(wb, infoWs, 'Info');
   
   // Create main sheet with all lessons
   const worksheetData: any[][] = [
@@ -309,60 +418,68 @@ function generateExcel(timetable: any): Uint8Array {
   ];
   
   days.forEach((day, dayIndex) => {
-    if (lessonsByDay[dayIndex]) {
-      lessonsByDay[dayIndex]
-        .sort((a: any, b: any) => a.time_slots.slot_order - b.time_slots.slot_order)
-        .forEach((lesson: any) => {
-          worksheetData.push([
-            day,
-            `${lesson.time_slots.start_time} - ${lesson.time_slots.end_time}`,
-            lesson.subjects.name,
-            lesson.subjects.code,
-            lesson.teachers.name,
-            lesson.classes.name,
-            lesson.classrooms?.name || 'TBA'
-          ]);
-        });
+    if (lessonsByDay[dayIndex] && lessonsByDay[dayIndex].length > 0) {
+      const sortedLessons = lessonsByDay[dayIndex]
+        .filter((lesson: any) => lesson.time_slots && lesson.subjects && lesson.teachers && lesson.classes)
+        .sort((a: any, b: any) => (a.time_slots?.slot_order || 0) - (b.time_slots?.slot_order || 0));
+      
+      sortedLessons.forEach((lesson: any) => {
+        worksheetData.push([
+          day,
+          `${lesson.time_slots.start_time} - ${lesson.time_slots.end_time}`,
+          lesson.subjects.name || 'N/A',
+          lesson.subjects.code || 'N/A',
+          lesson.teachers.name || 'N/A',
+          lesson.classes.name || 'N/A',
+          lesson.classrooms?.name || 'TBA'
+        ]);
+      });
     }
   });
   
   const ws = XLSX.utils.aoa_to_sheet(worksheetData);
   
-  // Auto-resize columns
+  // Auto-resize columns with better calculation
   const colWidths = worksheetData[0].map((_, colIndex) => {
-    return Math.max(
+    const maxLength = Math.max(
       ...worksheetData.map(row => String(row[colIndex] || '').length)
-    ) + 2;
+    );
+    return Math.min(Math.max(maxLength + 2, 10), 50); // Min 10, max 50
   });
   ws['!cols'] = colWidths.map(width => ({ width }));
   
-  XLSX.utils.book_append_sheet(wb, ws, 'Timetable');
+  XLSX.utils.book_append_sheet(wb, ws, 'All Lessons');
   
   // Create individual day sheets
   days.forEach((day, dayIndex) => {
     if (lessonsByDay[dayIndex] && lessonsByDay[dayIndex].length > 0) {
+      const sortedLessons = lessonsByDay[dayIndex]
+        .filter((lesson: any) => lesson.time_slots && lesson.subjects && lesson.teachers && lesson.classes)
+        .sort((a: any, b: any) => (a.time_slots?.slot_order || 0) - (b.time_slots?.slot_order || 0));
+      
+      if (sortedLessons.length === 0) return;
+      
       const dayData: any[][] = [
         ['Time', 'Subject', 'Code', 'Teacher', 'Class', 'Classroom']
       ];
       
-      lessonsByDay[dayIndex]
-        .sort((a: any, b: any) => a.time_slots.slot_order - b.time_slots.slot_order)
-        .forEach((lesson: any) => {
-          dayData.push([
-            `${lesson.time_slots.start_time} - ${lesson.time_slots.end_time}`,
-            lesson.subjects.name,
-            lesson.subjects.code,
-            lesson.teachers.name,
-            lesson.classes.name,
-            lesson.classrooms?.name || 'TBA'
-          ]);
-        });
+      sortedLessons.forEach((lesson: any) => {
+        dayData.push([
+          `${lesson.time_slots.start_time} - ${lesson.time_slots.end_time}`,
+          lesson.subjects.name || 'N/A',
+          lesson.subjects.code || 'N/A',
+          lesson.teachers.name || 'N/A',
+          lesson.classes.name || 'N/A',
+          lesson.classrooms?.name || 'TBA'
+        ]);
+      });
       
       const dayWs = XLSX.utils.aoa_to_sheet(dayData);
       const dayColWidths = dayData[0].map((_, colIndex) => {
-        return Math.max(
+        const maxLength = Math.max(
           ...dayData.map(row => String(row[colIndex] || '').length)
-        ) + 2;
+        );
+        return Math.min(Math.max(maxLength + 2, 10), 50);
       });
       dayWs['!cols'] = dayColWidths.map(width => ({ width }));
       
