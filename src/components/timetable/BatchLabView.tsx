@@ -5,6 +5,7 @@ import { Class, Teacher, Subject, TimeSlot, Lesson, Classroom, Batch, LabSchedul
 import { supabase } from "@/integrations/supabase/client";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { cn } from "@/lib/utils";
+import { Info } from "lucide-react";
 
 interface BatchLabViewProps {
   classId: string;
@@ -30,6 +31,7 @@ export const BatchLabView: React.FC<BatchLabViewProps> = ({
   const [batches, setBatches] = React.useState<Batch[]>([]);
   const [labSchedules, setLabSchedules] = React.useState<LabSchedule[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [hasBatchSpecificLabs, setHasBatchSpecificLabs] = React.useState(false);
 
   const selectedClass = classes.find(c => c.id === classId);
 
@@ -57,6 +59,7 @@ export const BatchLabView: React.FC<BatchLabViewProps> = ({
 
         setBatches(batchesData || []);
         setLabSchedules(labSchedulesData || []);
+        setHasBatchSpecificLabs((labSchedulesData || []).length > 0);
       } catch (error) {
         console.error("Error fetching batch data:", error);
       } finally {
@@ -88,6 +91,12 @@ export const BatchLabView: React.FC<BatchLabViewProps> = ({
     !subjects.find(s => s.id === lesson.subject_id)?.isLab
   );
 
+  // Get lab lessons from main timetable (class-wide)
+  const labLessons = lessons.filter(lesson => 
+    lesson.class_id === classId &&
+    subjects.find(s => s.id === lesson.subject_id)?.isLab
+  );
+
   // Group theory lessons by day and time
   const theoryByDayTime: Record<number, Record<string, Lesson>> = {};
   theoryLessons.forEach(lesson => {
@@ -97,7 +106,7 @@ export const BatchLabView: React.FC<BatchLabViewProps> = ({
     theoryByDayTime[lesson.day][lesson.time_slot_id] = lesson;
   });
 
-  // Group lab schedules by day and time
+  // Group lab schedules by day and time (batch-specific)
   const labsByDayTime: Record<number, Record<string, LabSchedule[]>> = {};
   labSchedules.forEach(lab => {
     if (!labsByDayTime[lab.day]) {
@@ -107,6 +116,18 @@ export const BatchLabView: React.FC<BatchLabViewProps> = ({
       labsByDayTime[lab.day][lab.time_slot_id] = [];
     }
     labsByDayTime[lab.day][lab.time_slot_id].push(lab);
+  });
+
+  // Group class-wide lab lessons by day and time (fallback)
+  const classLabsByDayTime: Record<number, Record<string, Lesson[]>> = {};
+  labLessons.forEach(lesson => {
+    if (!classLabsByDayTime[lesson.day]) {
+      classLabsByDayTime[lesson.day] = {};
+    }
+    if (!classLabsByDayTime[lesson.day][lesson.time_slot_id]) {
+      classLabsByDayTime[lesson.day][lesson.time_slot_id] = [];
+    }
+    classLabsByDayTime[lesson.day][lesson.time_slot_id].push(lesson);
   });
 
   // Create batch color map
@@ -147,11 +168,14 @@ export const BatchLabView: React.FC<BatchLabViewProps> = ({
   // Render cell content for a specific day and time slot
   const renderCell = (dayIndex: number, timeSlot: TimeSlot) => {
     const theoryLesson = theoryByDayTime[dayIndex]?.[timeSlot.id];
-    const labSessions = labsByDayTime[dayIndex]?.[timeSlot.id] || [];
+    const batchLabSessions = labsByDayTime[dayIndex]?.[timeSlot.id] || [];
+    const classLabSessions = classLabsByDayTime[dayIndex]?.[timeSlot.id] || [];
+
+    const isEmpty = !theoryLesson && batchLabSessions.length === 0 && classLabSessions.length === 0;
 
     return (
       <div className="h-full min-h-20 p-1 overflow-y-auto">
-        {!theoryLesson && labSessions.length === 0 ? (
+        {isEmpty ? (
           <div className="h-full flex items-center justify-center text-muted-foreground text-xs">
             Free
           </div>
@@ -173,8 +197,8 @@ export const BatchLabView: React.FC<BatchLabViewProps> = ({
               </div>
             )}
 
-            {/* Render lab sessions */}
-            {labSessions.map((lab) => {
+            {/* Render batch-specific lab sessions */}
+            {batchLabSessions.map((lab) => {
               const batch = batches.find(b => b.id === lab.batch_id);
               return (
                 <div
@@ -199,6 +223,25 @@ export const BatchLabView: React.FC<BatchLabViewProps> = ({
                 </div>
               );
             })}
+
+            {/* Render class-wide lab lessons (fallback when no batch-specific schedules) */}
+            {!hasBatchSpecificLabs && classLabSessions.map((lesson) => (
+              <div
+                key={lesson.id}
+                className="p-1.5 border rounded text-xs bg-orange-100 border-orange-200"
+              >
+                <div className="font-medium">{getSubjectName(lesson.subject_id)} Lab</div>
+                <Badge variant="outline" className="text-xs mt-1 bg-orange-50">
+                  Class-wide Lab
+                </Badge>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {getTeacherName(lesson.teacher_id)}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Lab: {getClassroomName(lesson.classroom_id)}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -214,20 +257,50 @@ export const BatchLabView: React.FC<BatchLabViewProps> = ({
           <p className="text-sm text-muted-foreground">
             {batches.length} batch{batches.length !== 1 ? 'es' : ''} • 
             {theoryLessons.length} theory lecture{theoryLessons.length !== 1 ? 's' : ''} • 
-            {labSchedules.length} lab session{labSchedules.length !== 1 ? 's' : ''}
+            {hasBatchSpecificLabs ? labSchedules.length : labLessons.length} lab session{(hasBatchSpecificLabs ? labSchedules.length : labLessons.length) !== 1 ? 's' : ''}
           </p>
         </CardHeader>
+      </Card>
+
+      {/* Info Card */}
+      <Card className="border-blue-200 bg-blue-50/50">
+        <CardContent className="pt-4">
+          <div className="flex gap-3">
+            <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+            <div className="space-y-2 text-sm">
+              <div className="font-medium text-blue-900">Schedule Information</div>
+              <div className="text-blue-800">
+                <div>Lab Scheduling: <strong>{hasBatchSpecificLabs ? 'Batch-specific' : 'Class-wide'}</strong></div>
+                {!hasBatchSpecificLabs && batches.length > 0 && (
+                  <div className="mt-2 text-xs text-blue-700">
+                    💡 To create batch-specific lab schedules, use the Lab Schedule dialog in the Subjects page.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </CardContent>
       </Card>
 
       {/* Batch Color Legend */}
       {batches.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Batch Color Legend</CardTitle>
+            <CardTitle className="text-sm font-medium">Legend</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-              {Object.entries(batchColorMap).map(([batchId, { colorClass, name }]) => (
+              <div className="flex items-center gap-2 p-2 rounded border text-xs bg-slate-100 border-slate-200 text-slate-800">
+                <div className="w-3 h-3 rounded-full bg-current opacity-60"></div>
+                <span className="font-medium">Common (Theory)</span>
+              </div>
+              {!hasBatchSpecificLabs && (
+                <div className="flex items-center gap-2 p-2 rounded border text-xs bg-orange-100 border-orange-200 text-orange-800">
+                  <div className="w-3 h-3 rounded-full bg-current opacity-60"></div>
+                  <span className="font-medium">Class-wide Lab</span>
+                </div>
+              )}
+              {hasBatchSpecificLabs && Object.entries(batchColorMap).map(([batchId, { colorClass, name }]) => (
                 <div
                   key={batchId}
                   className={cn("flex items-center gap-2 p-2 rounded border text-xs", colorClass)}
@@ -236,10 +309,6 @@ export const BatchLabView: React.FC<BatchLabViewProps> = ({
                   <span className="font-medium">{name}</span>
                 </div>
               ))}
-              <div className="flex items-center gap-2 p-2 rounded border text-xs bg-slate-100 border-slate-200 text-slate-800">
-                <div className="w-3 h-3 rounded-full bg-current opacity-60"></div>
-                <span className="font-medium">Common (Theory)</span>
-              </div>
             </div>
           </CardContent>
         </Card>
