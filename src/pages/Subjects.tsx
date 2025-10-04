@@ -2,7 +2,8 @@ import React from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
-import { Plus, Edit, Trash2 } from "lucide-react";
+import { Plus, Edit, Trash2, FlaskConical } from "lucide-react";
+import { assignLabSchedules } from "@/services/labScheduleService";
 import { TimetableService } from "@/services/timetableService";
 import { supabase } from "@/integrations/supabase/client";
 import { Subject, Class, LabSchedule, Teacher, Classroom, TimeSlot, Batch } from "@/types";
@@ -24,6 +25,7 @@ const Subjects = () => {
   const [batches, setBatches] = React.useState<Batch[]>([]);
   const [labSchedules, setLabSchedules] = React.useState<LabSchedule[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [isAssigning, setIsAssigning] = React.useState(false);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [isLabDialogOpen, setIsLabDialogOpen] = React.useState(false);
@@ -31,6 +33,27 @@ const Subjects = () => {
   const [currentSubject, setCurrentSubject] = React.useState<Subject | null>(null);
   const [deletedSubjects, setDeletedSubjects] = React.useState<Subject[]>([]);
   const [undoTimeoutId, setUndoTimeoutId] = React.useState<NodeJS.Timeout | null>(null);
+
+  const handleAssignLabSchedules = async () => {
+    setIsAssigning(true);
+    try {
+      const result = await assignLabSchedules();
+      await fetchData();
+      toast({
+        title: "Success",
+        description: `Assigned ${result.count} lab schedules for all batches`,
+      });
+    } catch (error) {
+      console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to assign lab schedules",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAssigning(false);
+    }
+  };
 
   const fetchData = React.useCallback(async () => {
     try {
@@ -329,10 +352,20 @@ const Subjects = () => {
         title="Subjects"
         description="Manage subjects and their assignments to classes"
         actions={
-          <Button onClick={() => setIsDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Subject
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={handleAssignLabSchedules}
+              disabled={isAssigning}
+              variant="outline"
+            >
+              <FlaskConical className="mr-2 h-4 w-4" />
+              {isAssigning ? "Assigning..." : "Auto-Assign Lab Schedules"}
+            </Button>
+            <Button onClick={() => setIsDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Subject
+            </Button>
+          </div>
         }
       />
 
