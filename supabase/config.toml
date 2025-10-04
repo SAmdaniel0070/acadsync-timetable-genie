@@ -11,6 +11,3 @@ verify_jwt = false
 
 [functions.import-data]
 verify_jwt = false
-
-[functions.assign-lab-schedules]
-verify_jwt = false
