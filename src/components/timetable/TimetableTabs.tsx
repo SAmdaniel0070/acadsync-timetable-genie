@@ -2,6 +2,7 @@
 import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TimetableView } from "@/components/timetable/TimetableView";
+import { BatchLabView } from "@/components/timetable/BatchLabView";
 import { 
   Class, 
   Teacher, 
@@ -69,6 +70,7 @@ export const TimetableTabs: React.FC<TimetableTabsProps> = ({
         <TabsTrigger value="teacher">Teacher Timetable</TabsTrigger>
         <TabsTrigger value="class">Class Timetable</TabsTrigger>
         <TabsTrigger value="classroom">Classroom Timetable</TabsTrigger>
+        <TabsTrigger value="batchlab">Batch Lab Schedule</TabsTrigger>
       </TabsList>
 
       <div className="mb-4">
@@ -111,6 +113,21 @@ export const TimetableTabs: React.FC<TimetableTabsProps> = ({
               {classrooms.map((classroom) => (
                 <SelectItem key={classroom.id} value={classroom.id}>
                   {classroom.name} ({classroom.isLab ? 'Lab' : 'Room'})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        {activeView === "batchlab" && (
+          <Select value={selectedClassId} onValueChange={setSelectedClassId}>
+            <SelectTrigger className="w-full md:w-72">
+              <SelectValue placeholder="Select Class" />
+            </SelectTrigger>
+            <SelectContent>
+              {classes.map((cls) => (
+                <SelectItem key={cls.id} value={cls.id}>
+                  {cls.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -201,6 +218,20 @@ export const TimetableTabs: React.FC<TimetableTabsProps> = ({
               onAddLesson={onAddLesson}
             />
           </div>
+        )}
+      </TabsContent>
+
+      <TabsContent value="batchlab" className="mt-0">
+        {timetable && selectedClassId && (
+          <BatchLabView
+            classId={selectedClassId}
+            classes={classes}
+            teachers={teachers}
+            subjects={subjects}
+            timeSlots={timeSlots}
+            classrooms={classrooms}
+            lessons={timetable.lessons}
+          />
         )}
       </TabsContent>
     </Tabs>

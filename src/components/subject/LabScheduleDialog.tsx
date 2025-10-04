@@ -45,6 +45,7 @@ export const LabScheduleDialog = ({
     time_slot_id: "",
     day: 0,
     class_id: "",
+    batch_id: "",
   });
 
   const labClassrooms = classrooms.filter(classroom => classroom.is_lab || classroom.isLab);
@@ -85,6 +86,7 @@ export const LabScheduleDialog = ({
           time_slot_id: newSchedule.time_slot_id,
           day: newSchedule.day,
           class_id: newSchedule.class_id,
+          batch_id: newSchedule.batch_id || null,
         });
 
       if (error) throw error;
@@ -100,6 +102,7 @@ export const LabScheduleDialog = ({
         time_slot_id: "",
         day: 0,
         class_id: "",
+        batch_id: "",
       });
 
       onLabSchedulesChange();
@@ -154,6 +157,13 @@ export const LabScheduleDialog = ({
   const getClassName = (classId: string) => {
     return classes.find(c => c.id === classId)?.name || "Unknown";
   };
+
+  const getBatchName = (batchId: string | null) => {
+    if (!batchId) return "All Batches";
+    return batches.find(b => b.id === batchId)?.name || "Unknown";
+  };
+
+  const classBatches = batches.filter(b => b.class_id === newSchedule.class_id);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -262,6 +272,27 @@ export const LabScheduleDialog = ({
                 </Select>
               </div>
 
+              <div>
+                <Label>Batch (Optional)</Label>
+                <Select
+                  value={newSchedule.batch_id}
+                  onValueChange={(value) => setNewSchedule({...newSchedule, batch_id: value})}
+                  disabled={!newSchedule.class_id}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All batches" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Batches</SelectItem>
+                    {classBatches.map((batch) => (
+                      <SelectItem key={batch.id} value={batch.id}>
+                        {batch.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="flex items-end">
                 <Button onClick={handleAddSchedule} className="w-full">
                   <Plus className="h-4 w-4 mr-2" />
@@ -283,6 +314,7 @@ export const LabScheduleDialog = ({
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
                         <Badge variant="outline">{getClassName(schedule.class_id || "")}</Badge>
+                        <Badge variant="outline">{getBatchName(schedule.batch_id || null)}</Badge>
                         <Badge variant="outline">{DAYS[schedule.day]}</Badge>
                         <Badge variant="outline">{getTimeSlotName(schedule.time_slot_id)}</Badge>
                       </div>

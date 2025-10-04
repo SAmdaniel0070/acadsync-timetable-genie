@@ -60,6 +60,7 @@ export interface LabSchedule {
   time_slot_id: string;
   day: number; // 0 for Monday, 1 for Tuesday, etc.
   class_id?: string;
+  batch_id?: string | null; // optional batch ID for batch-specific lab schedules
   created_at?: string;
   updated_at?: string;
 }
@@ -169,7 +170,10 @@ export interface SubjectFormValues {
 }
 
 // TimetableView is used to display different views of a timetable
-export type TimetableView = "master" | "teacher" | "class" | "classroom";
+export type TimetableView = "master" | "teacher" | "class" | "classroom" | "batchlab";
+
+// ShareableView is used for views that can be shared/exported (excludes batch lab view)
+export type ShareableView = "master" | "teacher" | "class" | "classroom";
 
 // Share method types
 export type ShareMethod = "whatsapp" | "email" | "download";

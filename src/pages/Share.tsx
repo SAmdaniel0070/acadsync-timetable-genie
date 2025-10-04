@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TimetablePreview } from "@/components/timetable/TimetablePreview";
-import { Timetable, Class, Teacher, Subject, TimeSlot, TimetableView as TimetableViewType } from "@/types";
+import { Timetable, Class, Teacher, Subject, TimeSlot, ShareableView } from "@/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,7 +29,7 @@ const Share = () => {
   const [timeSlots, setTimeSlots] = React.useState<TimeSlot[]>([]);
   const [loading, setLoading] = React.useState(true);
   
-  const [activeView, setActiveView] = React.useState<TimetableViewType>("master");
+  const [activeView, setActiveView] = React.useState<ShareableView>("master");
   const [selectedClassId, setSelectedClassId] = React.useState<string>("");
   const [selectedTeacherId, setSelectedTeacherId] = React.useState<string>("");
   const [recipientEmail, setRecipientEmail] = React.useState<string>("");
@@ -240,7 +240,7 @@ const Share = () => {
             <CardTitle>Select Timetable</CardTitle>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="master" onValueChange={(value) => setActiveView(value as TimetableViewType)} className="mb-4">
+            <Tabs defaultValue="master" onValueChange={(value) => setActiveView(value as ShareableView)} className="mb-4">
               <TabsList>
                 <TabsTrigger value="master">Master Timetable</TabsTrigger>
                 <TabsTrigger value="teacher">Teacher Timetable</TabsTrigger>

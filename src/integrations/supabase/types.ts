@@ -188,6 +188,7 @@ export type Database = {
       }
       lab_schedules: {
         Row: {
+          batch_id: string | null
           class_id: string | null
           classroom_id: string
           created_at: string
@@ -199,6 +200,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          batch_id?: string | null
           class_id?: string | null
           classroom_id: string
           created_at?: string
@@ -210,6 +212,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          batch_id?: string | null
           class_id?: string | null
           classroom_id?: string
           created_at?: string
@@ -254,6 +257,13 @@ export type Database = {
             columns: ["time_slot_id"]
             isOneToOne: false
             referencedRelation: "time_slots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_schedules_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "batches"
             referencedColumns: ["id"]
           },
         ]
@@ -662,6 +672,16 @@ export type Database = {
           name: string
           specialization: string
           updated_at: string
+        }[]
+      }
+      validate_share_token: {
+        Args: { token_to_check: string }
+        Returns: {
+          academic_year: string
+          name: string
+          timetable_id: string
+          timing_id: string
+          year_id: string
         }[]
       }
     }
