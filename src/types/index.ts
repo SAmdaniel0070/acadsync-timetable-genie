@@ -31,6 +31,7 @@ export interface Teacher {
   id: string;
   name: string;
   email: string;
+  phone?: string;
   specialization?: string;
   subjects?: string[]; // subjects they can teach (IDs) - derived
   created_at?: string;

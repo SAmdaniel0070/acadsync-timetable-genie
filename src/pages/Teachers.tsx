@@ -4,17 +4,20 @@ import { useToast } from "@/components/ui/use-toast";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { SelectableDataTable } from "@/components/ui/selectable-data-table";
-import { Teacher } from "@/types";
+import { Teacher, Subject } from "@/types";
 import { TimetableService } from "@/services/timetableService";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Edit, Trash } from "lucide-react";
+import { Plus, Edit, Trash, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 
 const Teachers = () => {
   const { toast } = useToast();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [selectedTeachers, setSelectedTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -25,14 +28,37 @@ const Teachers = () => {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    subjects: [] as string[],
+    phone: "",
+    selectedSubjects: [] as string[],
   });
 
   const fetchTeachers = async () => {
     try {
       setLoading(true);
-      const data = await TimetableService.getTeachers();
-      setTeachers(data);
+      
+      // Fetch teachers
+      const { data: teachersData, error: teachersError } = await supabase
+        .from('teachers')
+        .select('*');
+      
+      if (teachersError) throw teachersError;
+
+      // Fetch teacher-subject assignments
+      const { data: assignmentsData, error: assignmentsError } = await supabase
+        .from('teacher_subject_assignments')
+        .select('teacher_id, subject_id');
+      
+      if (assignmentsError) throw assignmentsError;
+
+      // Combine data
+      const teachersWithSubjects = (teachersData || []).map((teacher: any) => ({
+        ...teacher,
+        subjects: (assignmentsData || [])
+          .filter((a: any) => a.teacher_id === teacher.id)
+          .map((a: any) => a.subject_id)
+      }));
+      
+      setTeachers(teachersWithSubjects);
     } catch (error) {
       console.error("Error fetching teachers:", error);
       toast({
@@ -45,8 +71,18 @@ const Teachers = () => {
     }
   };
 
+  const fetchSubjects = async () => {
+    try {
+      const data = await TimetableService.getSubjects();
+      setSubjects(data);
+    } catch (error) {
+      console.error("Error fetching subjects:", error);
+    }
+  };
+
   useEffect(() => {
     fetchTeachers();
+    fetchSubjects();
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -54,9 +90,20 @@ const Teachers = () => {
     setFormData({ ...formData, [name]: value });
   };
 
-  const handleSubjectsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const subjects = e.target.value.split(",").map(s => s.trim());
-    setFormData({ ...formData, subjects });
+  const handleAddSubject = (subjectId: string) => {
+    if (!formData.selectedSubjects.includes(subjectId)) {
+      setFormData({ 
+        ...formData, 
+        selectedSubjects: [...formData.selectedSubjects, subjectId] 
+      });
+    }
+  };
+
+  const handleRemoveSubject = (subjectId: string) => {
+    setFormData({ 
+      ...formData, 
+      selectedSubjects: formData.selectedSubjects.filter(id => id !== subjectId) 
+    });
   };
 
   const handleAddTeacher = async () => {
@@ -70,19 +117,47 @@ const Teachers = () => {
         return;
       }
 
+      if (formData.selectedSubjects.length === 0) {
+        toast({
+          title: "Error",
+          description: "Please assign at least one subject to the teacher.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       if (currentTeacher) {
         // Update existing teacher
-        const { error } = await supabase
+        const { error: teacherError } = await supabase
           .from('teachers')
           .update({
             name: formData.name,
             email: formData.email,
-            specialization: formData.subjects.join(', '),
+            phone: formData.phone,
           })
           .eq('id', currentTeacher.id);
 
-        if (error) throw error;
-        await fetchTeachers();
+        if (teacherError) throw teacherError;
+
+        // Delete old subject assignments
+        const { error: deleteError } = await supabase
+          .from('teacher_subject_assignments')
+          .delete()
+          .eq('teacher_id', currentTeacher.id);
+
+        if (deleteError) throw deleteError;
+
+        // Insert new subject assignments
+        const assignments = formData.selectedSubjects.map(subjectId => ({
+          teacher_id: currentTeacher.id,
+          subject_id: subjectId
+        }));
+
+        const { error: assignError } = await supabase
+          .from('teacher_subject_assignments')
+          .insert(assignments);
+
+        if (assignError) throw assignError;
 
         toast({
           title: "Success",
@@ -90,16 +165,29 @@ const Teachers = () => {
         });
       } else {
         // Add new teacher
-        const { error } = await supabase
+        const { data: newTeacher, error: teacherError } = await supabase
           .from('teachers')
           .insert({
             name: formData.name,
             email: formData.email,
-            specialization: formData.subjects.join(', '),
-          });
+            phone: formData.phone,
+          })
+          .select()
+          .single();
 
-        if (error) throw error;
-        await fetchTeachers();
+        if (teacherError) throw teacherError;
+
+        // Insert subject assignments
+        const assignments = formData.selectedSubjects.map(subjectId => ({
+          teacher_id: newTeacher.id,
+          subject_id: subjectId
+        }));
+
+        const { error: assignError } = await supabase
+          .from('teacher_subject_assignments')
+          .insert(assignments);
+
+        if (assignError) throw assignError;
 
         toast({
           title: "Success",
@@ -107,6 +195,7 @@ const Teachers = () => {
         });
       }
       
+      await fetchTeachers();
       setIsDialogOpen(false);
       resetForm();
     } catch (error) {
@@ -158,7 +247,8 @@ const Teachers = () => {
     setFormData({
       name: teacher.name,
       email: teacher.email || "",
-      subjects: teacher.specialization ? [teacher.specialization] : [],
+      phone: teacher.phone || "",
+      selectedSubjects: teacher.subjects || [],
     });
     setIsDialogOpen(true);
   };
@@ -270,7 +360,8 @@ const Teachers = () => {
     setFormData({
       name: "",
       email: "",
-      subjects: [],
+      phone: "",
+      selectedSubjects: [],
     });
   };
 
@@ -280,9 +371,24 @@ const Teachers = () => {
     {
       key: "subjects",
       title: "Subjects",
-      render: (teacher: Teacher) => (
-        <span>{teacher.specialization || 'No specialization'}</span>
-      ),
+      render: (teacher: Teacher) => {
+        const teacherSubjects = subjects.filter(s => 
+          teacher.subjects?.includes(s.id)
+        );
+        return (
+          <div className="flex flex-wrap gap-1">
+            {teacherSubjects.length > 0 ? (
+              teacherSubjects.map(subject => (
+                <Badge key={subject.id} variant="secondary">
+                  {subject.name}
+                </Badge>
+              ))
+            ) : (
+              <span className="text-muted-foreground">No subjects</span>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: "actions",
@@ -367,14 +473,48 @@ const Teachers = () => {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="subjects">Subjects (comma separated subject IDs)</Label>
+              <Label htmlFor="phone">Phone</Label>
               <Input
-                id="subjects"
-                name="subjects"
-                value={formData.subjects.join(", ")}
-                onChange={handleSubjectsChange}
-                placeholder="e.g. s1, s2, s3"
+                id="phone"
+                name="phone"
+                type="tel"
+                value={formData.phone}
+                onChange={handleInputChange}
+                placeholder="Enter teacher phone"
               />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="subjects">Subjects *</Label>
+              <Select onValueChange={handleAddSubject}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select subjects to assign" />
+                </SelectTrigger>
+                <SelectContent>
+                  {subjects
+                    .filter(s => !formData.selectedSubjects.includes(s.id))
+                    .map(subject => (
+                      <SelectItem key={subject.id} value={subject.id}>
+                        {subject.name} ({subject.code})
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              {formData.selectedSubjects.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {formData.selectedSubjects.map(subjectId => {
+                    const subject = subjects.find(s => s.id === subjectId);
+                    return subject ? (
+                      <Badge key={subjectId} variant="secondary" className="gap-1">
+                        {subject.name} ({subject.code})
+                        <X 
+                          className="h-3 w-3 cursor-pointer" 
+                          onClick={() => handleRemoveSubject(subjectId)}
+                        />
+                      </Badge>
+                    ) : null;
+                  })}
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>
