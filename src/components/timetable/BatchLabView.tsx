@@ -176,29 +176,24 @@ export const BatchLabView: React.FC<BatchLabViewProps> = ({
     const previousSlot = teachingTimeSlots[currentSlotIndex - 1];
     if (!previousSlot) return null;
 
-    // Check theory lessons
+    // Check theory lessons with duration_slots = 2
     const previousTheoryLesson = theoryByDayTime[dayIndex]?.[previousSlot.id];
-    if (previousTheoryLesson) {
-      const subject = subjects.find(s => s.id === previousTheoryLesson.subject_id);
-      if (subject?.isLab && subject?.lab_duration_hours === 2) {
-        return { type: 'theory', lesson: previousTheoryLesson };
-      }
+    if (previousTheoryLesson && previousTheoryLesson.duration_slots === 2) {
+      return { type: 'theory', lesson: previousTheoryLesson };
     }
 
-    // Check batch lab sessions
+    // Check batch lab sessions with duration_slots = 2
     const previousBatchLabs = labsByDayTime[dayIndex]?.[previousSlot.id] || [];
     for (const lab of previousBatchLabs) {
-      const subject = subjects.find(s => s.id === lab.subject_id);
-      if (subject?.lab_duration_hours === 2) {
+      if (lab.duration_slots === 2) {
         return { type: 'batchLab', lesson: lab };
       }
     }
 
-    // Check class-wide lab sessions
+    // Check class-wide lab sessions with duration_slots = 2
     const previousClassLabs = classLabsByDayTime[dayIndex]?.[previousSlot.id] || [];
     for (const lesson of previousClassLabs) {
-      const subject = subjects.find(s => s.id === lesson.subject_id);
-      if (subject?.isLab && subject?.lab_duration_hours === 2) {
+      if (lesson.duration_slots === 2) {
         return { type: 'classLab', lesson: lesson };
       }
     }
@@ -248,7 +243,7 @@ export const BatchLabView: React.FC<BatchLabViewProps> = ({
             {batchLabSessions.map((lab) => {
               const batch = batches.find(b => b.id === lab.batch_id);
               const subject = subjects.find(s => s.id === lab.subject_id);
-              const isMultiHour = subject?.lab_duration_hours === 2;
+              const isMultiHour = lab.duration_slots === 2;
 
               return (
                 <div
@@ -280,7 +275,7 @@ export const BatchLabView: React.FC<BatchLabViewProps> = ({
             {/* Render class-wide lab lessons (fallback when no batch-specific schedules) */}
             {!hasBatchSpecificLabs && classLabSessions.map((lesson) => {
               const subject = subjects.find(s => s.id === lesson.subject_id);
-              const isMultiHour = subject?.lab_duration_hours === 2;
+              const isMultiHour = lesson.duration_slots === 2;
 
               return (
                 <div

@@ -362,32 +362,8 @@ export const TimetableService = {
   },
 
   async deleteLesson(id: string): Promise<void> {
-    // First, check if this lesson has a continuation or is a continuation
-    const { data: lessonData } = await (supabase as any)
-      .from('lessons')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (lessonData) {
-      // If this is a parent lesson with continuation, delete the continuation too
-      if (lessonData.duration_slots === 2 && !lessonData.is_continuation) {
-        await (supabase as any)
-          .from('lessons')
-          .delete()
-          .eq('parent_lesson_id', id);
-      }
-
-      // If this is a continuation lesson, also delete the parent
-      if (lessonData.is_continuation && lessonData.parent_lesson_id) {
-        await (supabase as any)
-          .from('lessons')
-          .delete()
-          .eq('id', lessonData.parent_lesson_id);
-      }
-    }
-
-    // Delete the main lesson
+    // Simplified deletion - no need to handle continuation slots
+    // since we now use single entries with duration_slots
     const { error } = await (supabase as any)
       .from('lessons')
       .delete()
@@ -439,30 +415,8 @@ export const TimetableService = {
       timeSlotId: data.time_slot_id,
     };
 
-    // If this is a 2-hour lab (duration_slots = 2), create a continuation lesson
-    if (data.duration_slots === 2 && !data.is_continuation) {
-      // Get the next time slot
-      const timeSlots = await this.getTimeSlots();
-      const currentSlot = timeSlots.find(slot => slot.id === data.time_slot_id);
-      const nextSlot = timeSlots.find(slot =>
-        slot.slot_order === (currentSlot?.slot_order || 0) + 1 &&
-        !slot.is_break
-      );
-
-      if (nextSlot) {
-        const continuationData = {
-          ...insertData,
-          time_slot_id: nextSlot.id,
-          is_continuation: true,
-          parent_lesson_id: data.id,
-          duration_slots: 1, // Continuation slot is always 1
-        };
-
-        await (supabase as any)
-          .from('lessons')
-          .insert(continuationData);
-      }
-    }
+    // Note: 2-hour labs are now handled as single entries with duration_slots = 2
+    // No need to create separate continuation entries
 
     return transformedLesson;
   },
@@ -1017,7 +971,7 @@ export const TimetableService = {
 
       if (!availableClassroom) continue;
 
-      // Create schedule data
+      // Create schedule data with duration information
       const scheduleData = {
         subject_id: subject.id,
         teacher_id: teacher.id,
@@ -1025,7 +979,8 @@ export const TimetableService = {
         time_slot_id: slot.timeSlotId,
         day: slot.day,
         class_id: classItem.id,
-        batch_id: batch.id
+        batch_id: batch.id,
+        duration_slots: labDuration // Store the duration for proper rendering
       };
 
       schedules.push(scheduleData);
@@ -1033,21 +988,9 @@ export const TimetableService = {
       // Add to conflict checker for future checks
       conflictChecker.addSchedule(scheduleData);
 
-      // For 2-hour labs, add continuation
-      if (labDuration === 2) {
-        const nextSlot = teachingTimeSlots.find((ts: any) =>
-          ts.slot_order === slot.timeSlot.slot_order + 1 && !ts.is_break
-        );
-
-        if (nextSlot) {
-          const continuationData = {
-            ...scheduleData,
-            time_slot_id: nextSlot.id
-          };
-          schedules.push(continuationData);
-          conflictChecker.addSchedule(continuationData);
-        }
-      }
+      // Note: 2-hour labs are handled as single entries with duration_slots = 2
+      // The UI will render them spanning multiple time slots based on duration_slots
+      // No need to create separate continuation entries
 
       scheduledSessions++;
     }
@@ -1168,11 +1111,24 @@ class OptimizedConflictChecker {
   }
 
   addSchedule(schedule: any): void {
-    const key = `${schedule.day}-${schedule.time_slot_id}`;
-    this.labConflicts.add(`${key}-teacher-${schedule.teacher_id}`);
-    this.labConflicts.add(`${key}-batch-${schedule.batch_id}`);
-    this.labConflicts.add(`${key}-class-${schedule.class_id}`);
-    this.classroomConflicts.add(`${key}-${schedule.classroom_id}`);
+    const slotsToBlock = [schedule.time_slot_id];
+    
+    // For multi-hour schedules, block consecutive slots
+    if (schedule.duration_slots === 2) {
+      const nextSlot = this.findNextSlot(schedule.time_slot_id);
+      if (nextSlot) {
+        slotsToBlock.push(nextSlot.id);
+      }
+    }
+    
+    // Block all required slots
+    slotsToBlock.forEach(slotId => {
+      const key = `${schedule.day}-${slotId}`;
+      this.labConflicts.add(`${key}-teacher-${schedule.teacher_id}`);
+      this.labConflicts.add(`${key}-batch-${schedule.batch_id}`);
+      this.labConflicts.add(`${key}-class-${schedule.class_id}`);
+      this.classroomConflicts.add(`${key}-${schedule.classroom_id}`);
+    });
   }
 
   private findNextSlot(timeSlotId: string): any | null {
