@@ -6,7 +6,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { TimetableTabs } from "@/components/timetable/TimetableTabs";
 import { TimetableActions } from "@/components/timetable/TimetableActions";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Save } from "lucide-react";
+import { useTimetableSync } from "@/hooks/useTimetableSync";
+import { Save, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const Timetables = () => {
@@ -23,6 +24,7 @@ const Timetables = () => {
   const [selectedTeacherId, setSelectedTeacherId] = React.useState<string>("");
   const [selectedClassroomId, setSelectedClassroomId] = React.useState<string>("");
   const [editMode, setEditMode] = React.useState<EditMode>("none");
+  const [lastSyncTime, setLastSyncTime] = React.useState<Date>(new Date());
 
   // Fetch all required data
   const fetchData = React.useCallback(async () => {
@@ -65,6 +67,41 @@ const Timetables = () => {
   React.useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Real-time synchronization
+  const { refreshTimetable } = useTimetableSync({
+    timetable,
+    onTimetableUpdate: (updatedTimetable) => {
+      setTimetable(updatedTimetable);
+      setLastSyncTime(new Date());
+      toast({
+        title: "Timetable Updated",
+        description: "Timetable has been synchronized with latest changes.",
+      });
+    },
+    onLessonUpdate: (updatedLesson) => {
+      if (timetable) {
+        const updatedLessons = timetable.lessons.map(lesson =>
+          lesson.id === updatedLesson.id ? updatedLesson : lesson
+        );
+        setTimetable({ ...timetable, lessons: updatedLessons });
+        setLastSyncTime(new Date());
+      }
+    },
+    onLessonDelete: (lessonId) => {
+      if (timetable) {
+        const updatedLessons = timetable.lessons.filter(lesson => lesson.id !== lessonId);
+        setTimetable({ ...timetable, lessons: updatedLessons });
+        setLastSyncTime(new Date());
+      }
+    },
+    onLessonAdd: (newLesson) => {
+      if (timetable) {
+        setTimetable({ ...timetable, lessons: [...timetable.lessons, newLesson] });
+        setLastSyncTime(new Date());
+      }
+    },
+  });
 
   const handleGenerateTimetable = async () => {
     try {
@@ -212,9 +249,25 @@ const Timetables = () => {
 
   const handleUpdateLesson = async (lesson: Lesson) => {
     try {
-      await TimetableService.updateLesson(lesson);
-      const updatedTimetable = await TimetableService.getTimetable();
-      setTimetable(updatedTimetable);
+      // Ensure timetable_id is preserved
+      const lessonWithTimetableId = {
+        ...lesson,
+        timetable_id: lesson.timetable_id || timetable?.id || "",
+      };
+      
+      await TimetableService.updateLesson(lessonWithTimetableId);
+      
+      // Update local state immediately for better UX
+      if (timetable) {
+        const updatedLessons = timetable.lessons.map(l =>
+          l.id === lesson.id ? lessonWithTimetableId : l
+        );
+        setTimetable({
+          ...timetable,
+          lessons: updatedLessons
+        });
+      }
+      
       toast({
         title: "Success",
         description: "Lesson updated successfully",
@@ -232,8 +285,16 @@ const Timetables = () => {
   const handleDeleteLesson = async (id: string) => {
     try {
       await TimetableService.deleteLesson(id);
-      const updatedTimetable = await TimetableService.getTimetable();
-      setTimetable(updatedTimetable);
+      
+      // Update local state immediately for better UX
+      if (timetable) {
+        const updatedLessons = timetable.lessons.filter(l => l.id !== id);
+        setTimetable({
+          ...timetable,
+          lessons: updatedLessons
+        });
+      }
+      
       toast({
         title: "Success",
         description: "Lesson deleted successfully",
@@ -250,9 +311,22 @@ const Timetables = () => {
 
   const handleAddLesson = async (lesson: Omit<Lesson, "id">) => {
     try {
-      await TimetableService.addLesson(lesson);
-      const updatedTimetable = await TimetableService.getTimetable();
-      setTimetable(updatedTimetable);
+      // Ensure timetable_id is set
+      const lessonWithTimetableId = {
+        ...lesson,
+        timetable_id: lesson.timetable_id || timetable?.id || "",
+      };
+      
+      const newLesson = await TimetableService.addLesson(lessonWithTimetableId);
+      
+      // Update local state immediately for better UX
+      if (timetable) {
+        setTimetable({
+          ...timetable,
+          lessons: [...timetable.lessons, newLesson]
+        });
+      }
+      
       toast({
         title: "Success",
         description: "Lesson added successfully",
@@ -277,6 +351,54 @@ const Timetables = () => {
       title: "Success",
       description: "Draft loaded successfully",
     });
+  };
+
+  const handleRegenerateBatchLabs = async () => {
+    try {
+      setLoading(true);
+      await TimetableService.regenerateBatchLabSchedules();
+      
+      // Refresh the timetable data
+      await fetchData();
+      
+      toast({
+        title: "Success",
+        description: "Batch lab schedules regenerated successfully",
+      });
+    } catch (error) {
+      console.error("Error regenerating batch labs:", error);
+      toast({
+        title: "Error",
+        description: "Failed to regenerate batch lab schedules",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClearBatchLabs = async () => {
+    try {
+      setLoading(true);
+      await TimetableService.clearBatchLabSchedules();
+      
+      // Refresh the timetable data
+      await fetchData();
+      
+      toast({
+        title: "Success",
+        description: "Batch lab schedules cleared successfully",
+      });
+    } catch (error) {
+      console.error("Error clearing batch labs:", error);
+      toast({
+        title: "Error",
+        description: "Failed to clear batch lab schedules",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSaveChanges = async () => {
@@ -317,10 +439,24 @@ const Timetables = () => {
         title="Timetables" 
         description="Generate and view timetables"
         actions={
-          <Button onClick={handleSaveChanges} disabled={!timetable}>
-            <Save className="mr-2 h-4 w-4" />
-            Save Changes
-          </Button>
+          <div className="flex items-center gap-2">
+            <div className="text-xs text-muted-foreground">
+              Last sync: {lastSyncTime.toLocaleTimeString()}
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={refreshTimetable}
+              disabled={loading}
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh
+            </Button>
+            <Button onClick={handleSaveChanges} disabled={!timetable}>
+              <Save className="mr-2 h-4 w-4" />
+              Save Changes
+            </Button>
+          </div>
         }
       />
 
@@ -334,6 +470,8 @@ const Timetables = () => {
           toggleEditMode={toggleEditMode}
           currentTimetableData={timetable}
           onLoadDraft={handleLoadDraft}
+          onRegenerateBatchLabs={handleRegenerateBatchLabs}
+          onClearBatchLabs={handleClearBatchLabs}
         />
       </div>
 

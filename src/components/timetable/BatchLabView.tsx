@@ -220,7 +220,7 @@ export const BatchLabView: React.FC<BatchLabViewProps> = ({
     return (
       <div className="h-full min-h-20 p-1 overflow-y-auto">
         {isEmpty ? (
-          <div className="h-full flex items-center justify-center text-muted-foreground text-xs">
+          <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
             Free
           </div>
         ) : (
@@ -228,18 +228,18 @@ export const BatchLabView: React.FC<BatchLabViewProps> = ({
             {/* Render theory lesson */}
             {theoryLesson && (
               <div className={cn(
-                "p-1.5 border rounded text-xs bg-slate-100 border-slate-200",
+                "timetable-lesson p-2 text-xs bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700",
                 subjects.find(s => s.id === theoryLesson.subject_id)?.lab_duration_hours === 2 && "border-l-4 border-l-blue-500"
               )}>
-                <div className="font-medium">{getSubjectName(theoryLesson.subject_id)}</div>
-                <Badge variant="secondary" className="text-xs mt-1">
+                <div className="font-semibold text-sm mb-1">{getSubjectName(theoryLesson.subject_id)}</div>
+                <Badge variant="secondary" className="text-xs mt-1 badge-theory">
                   {subjects.find(s => s.id === theoryLesson.subject_id)?.lab_duration_hours === 2 ? "2h Common" : "Common"}
                 </Badge>
                 <div className="text-xs text-muted-foreground mt-1">
-                  {getTeacherName(theoryLesson.teacher_id)}
+                  👨‍🏫 {getTeacherName(theoryLesson.teacher_id)}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {getClassroomName(theoryLesson.classroom_id)}
+                  🏛️ {getClassroomName(theoryLesson.classroom_id)}
                 </div>
               </div>
             )}
@@ -254,12 +254,12 @@ export const BatchLabView: React.FC<BatchLabViewProps> = ({
                 <div
                   key={lab.id}
                   className={cn(
-                    "p-1.5 border rounded text-xs",
-                    batch ? getBatchColor(batch.id) : "bg-gray-100 border-gray-200",
-                    isMultiHour && "border-l-4 border-l-orange-500"
+                    "timetable-lesson p-2 text-xs",
+                    batch ? getBatchColor(batch.id) : "bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700",
+                    isMultiHour && "timetable-lesson-lab border-l-4 border-l-orange-500"
                   )}
                 >
-                  <div className="font-medium">
+                  <div className="font-semibold text-sm mb-1">
                     {getSubjectName(lab.subject_id)} {isMultiHour ? "2h Lab" : "Lab"}
                   </div>
                   {batch && (
@@ -268,10 +268,10 @@ export const BatchLabView: React.FC<BatchLabViewProps> = ({
                     </Badge>
                   )}
                   <div className="text-xs text-muted-foreground mt-1">
-                    {getTeacherName(lab.teacher_id)}
+                    👨‍🏫 {getTeacherName(lab.teacher_id)}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    Lab: {getClassroomName(lab.classroom_id)}
+                    🏛️ {getClassroomName(lab.classroom_id)}
                   </div>
                 </div>
               );
@@ -286,21 +286,21 @@ export const BatchLabView: React.FC<BatchLabViewProps> = ({
                 <div
                   key={lesson.id}
                   className={cn(
-                    "p-1.5 border rounded text-xs bg-orange-100 border-orange-200",
-                    isMultiHour && "border-l-4 border-l-orange-500"
+                    "timetable-lesson p-2 text-xs bg-orange-100 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800",
+                    isMultiHour && "timetable-lesson-lab border-l-4 border-l-orange-500"
                   )}
                 >
-                  <div className="font-medium">
+                  <div className="font-semibold text-sm mb-1">
                     {getSubjectName(lesson.subject_id)} {isMultiHour ? "2h Lab" : "Lab"}
                   </div>
-                  <Badge variant="outline" className="text-xs mt-1 bg-orange-50">
+                  <Badge variant="outline" className="text-xs mt-1 badge-lab">
                     Class-wide Lab
                   </Badge>
                   <div className="text-xs text-muted-foreground mt-1">
-                    {getTeacherName(lesson.teacher_id)}
+                    👨‍🏫 {getTeacherName(lesson.teacher_id)}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    Lab: {getClassroomName(lesson.classroom_id)}
+                    🏛️ {getClassroomName(lesson.classroom_id)}
                   </div>
                 </div>
               );
@@ -436,14 +436,14 @@ export const BatchLabView: React.FC<BatchLabViewProps> = ({
       )}
 
       {/* Timetable Table */}
-      <div className="bg-background rounded-md shadow overflow-auto">
+      <div className="bg-card rounded-md shadow-sm border border-border overflow-auto">
         <div className="min-w-[768px]">
           <table className="w-full border-collapse">
             <thead>
               <tr>
-                <th className="border p-2 bg-muted w-24"></th>
+                <th className="table-header border border-border p-3 w-24 text-sm font-semibold"></th>
                 {DAYS.map((day) => (
-                  <th key={day} className="border p-2 bg-muted">
+                  <th key={day} className="table-header border border-border p-3 text-sm font-semibold">
                     {day}
                   </th>
                 ))}
@@ -452,11 +452,11 @@ export const BatchLabView: React.FC<BatchLabViewProps> = ({
             <tbody>
               {teachingTimeSlots.map((timeSlot) => (
                 <tr key={timeSlot.id}>
-                  <td className="border p-2 bg-muted text-sm font-medium">
+                  <td className="table-header border border-border p-3 text-sm font-semibold">
                     {timeSlot.start_time} - {timeSlot.end_time}
                   </td>
                   {DAYS.map((_, dayIndex) => (
-                    <td key={`${timeSlot.id}-${dayIndex}`} className="border">
+                    <td key={`${timeSlot.id}-${dayIndex}`} className="table-cell border border-border">
                       {renderCell(dayIndex, timeSlot)}
                     </td>
                   ))}
