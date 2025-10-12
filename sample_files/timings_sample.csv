@@ -1,0 +1,12 @@
+Period Name,Start Time,End Time,Is Break,Timing Name
+Period 1,08:30,09:15,No,Weekday Schedule
+Period 2,09:15,10:00,No,Weekday Schedule
+Short Break,10:00,10:15,Yes,Weekday Schedule
+Period 3,10:15,11:00,No,Weekday Schedule
+Period 4,11:00,11:45,No,Weekday Schedule
+Long Break,11:45,12:30,Yes,Weekday Schedule
+Period 5,12:30,13:15,No,Weekday Schedule
+Period 6,13:15,14:00,No,Weekday Schedule
+Lunch Break,14:00,14:45,Yes,Weekday Schedule
+Period 7,14:45,15:30,No,Weekday Schedule
+Period 8,15:30,16:15,No,Weekday Schedule
