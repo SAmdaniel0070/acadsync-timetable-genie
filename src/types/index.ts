@@ -112,6 +112,9 @@ export interface Lesson {
   classroom_id?: string;
   time_slot_id: string;
   day: number; // 0 for Monday, 1 for Tuesday, etc.
+  duration_slots?: number; // Number of consecutive slots this lesson occupies (1 for regular, 2 for 2-hour labs)
+  is_continuation?: boolean; // True if this is a continuation slot of a multi-slot lesson
+  parent_lesson_id?: string; // ID of the parent lesson for continuation slots
   
   // Computed/compatibility fields
   classId?: string;

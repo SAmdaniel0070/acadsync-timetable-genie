@@ -39,7 +39,7 @@ export const BatchLabView: React.FC<BatchLabViewProps> = ({
     const fetchBatchData = async () => {
       try {
         setLoading(true);
-        
+
         // Fetch batches for this class
         const { data: batchesData, error: batchesError } = await supabase
           .from('batches')
@@ -86,13 +86,13 @@ export const BatchLabView: React.FC<BatchLabViewProps> = ({
   };
 
   // Get theory lessons (non-lab lessons for this class)
-  const theoryLessons = lessons.filter(lesson => 
+  const theoryLessons = lessons.filter(lesson =>
     lesson.class_id === classId &&
     !subjects.find(s => s.id === lesson.subject_id)?.isLab
   );
 
   // Get lab lessons from main timetable (class-wide)
-  const labLessons = lessons.filter(lesson => 
+  const labLessons = lessons.filter(lesson =>
     lesson.class_id === classId &&
     subjects.find(s => s.id === lesson.subject_id)?.isLab
   );
@@ -134,7 +134,7 @@ export const BatchLabView: React.FC<BatchLabViewProps> = ({
   const batchColorMap = React.useMemo(() => {
     const colorClasses = [
       "bg-red-100 border-red-200 text-red-800",
-      "bg-blue-100 border-blue-200 text-blue-800", 
+      "bg-blue-100 border-blue-200 text-blue-800",
       "bg-green-100 border-green-200 text-green-800",
       "bg-yellow-100 border-yellow-200 text-yellow-800",
       "bg-purple-100 border-purple-200 text-purple-800",
@@ -165,13 +165,57 @@ export const BatchLabView: React.FC<BatchLabViewProps> = ({
     return <LoadingSpinner />;
   }
 
+  // Check if a time slot is occupied by a multi-hour lesson from previous slot
+  const isSlotOccupiedByPreviousLesson = (dayIndex: number, timeSlotId: string): {
+    type: 'theory' | 'batchLab' | 'classLab';
+    lesson: Lesson | LabSchedule;
+  } | null => {
+    const currentSlotIndex = teachingTimeSlots.findIndex(slot => slot.id === timeSlotId);
+    if (currentSlotIndex === 0) return null; // First slot can't be occupied by previous
+
+    const previousSlot = teachingTimeSlots[currentSlotIndex - 1];
+    if (!previousSlot) return null;
+
+    // Check theory lessons
+    const previousTheoryLesson = theoryByDayTime[dayIndex]?.[previousSlot.id];
+    if (previousTheoryLesson) {
+      const subject = subjects.find(s => s.id === previousTheoryLesson.subject_id);
+      if (subject?.isLab && subject?.lab_duration_hours === 2) {
+        return { type: 'theory', lesson: previousTheoryLesson };
+      }
+    }
+
+    // Check batch lab sessions
+    const previousBatchLabs = labsByDayTime[dayIndex]?.[previousSlot.id] || [];
+    for (const lab of previousBatchLabs) {
+      const subject = subjects.find(s => s.id === lab.subject_id);
+      if (subject?.lab_duration_hours === 2) {
+        return { type: 'batchLab', lesson: lab };
+      }
+    }
+
+    // Check class-wide lab sessions
+    const previousClassLabs = classLabsByDayTime[dayIndex]?.[previousSlot.id] || [];
+    for (const lesson of previousClassLabs) {
+      const subject = subjects.find(s => s.id === lesson.subject_id);
+      if (subject?.isLab && subject?.lab_duration_hours === 2) {
+        return { type: 'classLab', lesson: lesson };
+      }
+    }
+
+    return null;
+  };
+
   // Render cell content for a specific day and time slot
   const renderCell = (dayIndex: number, timeSlot: TimeSlot) => {
     const theoryLesson = theoryByDayTime[dayIndex]?.[timeSlot.id];
     const batchLabSessions = labsByDayTime[dayIndex]?.[timeSlot.id] || [];
     const classLabSessions = classLabsByDayTime[dayIndex]?.[timeSlot.id] || [];
 
-    const isEmpty = !theoryLesson && batchLabSessions.length === 0 && classLabSessions.length === 0;
+    // Check if this slot is occupied by a previous 2-hour lesson
+    const occupyingLesson = isSlotOccupiedByPreviousLesson(dayIndex, timeSlot.id);
+
+    const isEmpty = !theoryLesson && batchLabSessions.length === 0 && classLabSessions.length === 0 && !occupyingLesson;
 
     return (
       <div className="h-full min-h-20 p-1 overflow-y-auto">
@@ -183,10 +227,13 @@ export const BatchLabView: React.FC<BatchLabViewProps> = ({
           <div className="space-y-1">
             {/* Render theory lesson */}
             {theoryLesson && (
-              <div className="p-1.5 border rounded text-xs bg-slate-100 border-slate-200">
+              <div className={cn(
+                "p-1.5 border rounded text-xs bg-slate-100 border-slate-200",
+                subjects.find(s => s.id === theoryLesson.subject_id)?.lab_duration_hours === 2 && "border-l-4 border-l-blue-500"
+              )}>
                 <div className="font-medium">{getSubjectName(theoryLesson.subject_id)}</div>
                 <Badge variant="secondary" className="text-xs mt-1">
-                  Common
+                  {subjects.find(s => s.id === theoryLesson.subject_id)?.lab_duration_hours === 2 ? "2h Common" : "Common"}
                 </Badge>
                 <div className="text-xs text-muted-foreground mt-1">
                   {getTeacherName(theoryLesson.teacher_id)}
@@ -200,15 +247,21 @@ export const BatchLabView: React.FC<BatchLabViewProps> = ({
             {/* Render batch-specific lab sessions */}
             {batchLabSessions.map((lab) => {
               const batch = batches.find(b => b.id === lab.batch_id);
+              const subject = subjects.find(s => s.id === lab.subject_id);
+              const isMultiHour = subject?.lab_duration_hours === 2;
+
               return (
                 <div
                   key={lab.id}
                   className={cn(
                     "p-1.5 border rounded text-xs",
-                    batch ? getBatchColor(batch.id) : "bg-gray-100 border-gray-200"
+                    batch ? getBatchColor(batch.id) : "bg-gray-100 border-gray-200",
+                    isMultiHour && "border-l-4 border-l-orange-500"
                   )}
                 >
-                  <div className="font-medium">{getSubjectName(lab.subject_id)} Lab</div>
+                  <div className="font-medium">
+                    {getSubjectName(lab.subject_id)} {isMultiHour ? "2h Lab" : "Lab"}
+                  </div>
                   {batch && (
                     <Badge variant="outline" className="text-xs mt-1">
                       {batch.name}
@@ -225,23 +278,91 @@ export const BatchLabView: React.FC<BatchLabViewProps> = ({
             })}
 
             {/* Render class-wide lab lessons (fallback when no batch-specific schedules) */}
-            {!hasBatchSpecificLabs && classLabSessions.map((lesson) => (
-              <div
-                key={lesson.id}
-                className="p-1.5 border rounded text-xs bg-orange-100 border-orange-200"
-              >
-                <div className="font-medium">{getSubjectName(lesson.subject_id)} Lab</div>
-                <Badge variant="outline" className="text-xs mt-1 bg-orange-50">
-                  Class-wide Lab
-                </Badge>
-                <div className="text-xs text-muted-foreground mt-1">
-                  {getTeacherName(lesson.teacher_id)}
+            {!hasBatchSpecificLabs && classLabSessions.map((lesson) => {
+              const subject = subjects.find(s => s.id === lesson.subject_id);
+              const isMultiHour = subject?.lab_duration_hours === 2;
+
+              return (
+                <div
+                  key={lesson.id}
+                  className={cn(
+                    "p-1.5 border rounded text-xs bg-orange-100 border-orange-200",
+                    isMultiHour && "border-l-4 border-l-orange-500"
+                  )}
+                >
+                  <div className="font-medium">
+                    {getSubjectName(lesson.subject_id)} {isMultiHour ? "2h Lab" : "Lab"}
+                  </div>
+                  <Badge variant="outline" className="text-xs mt-1 bg-orange-50">
+                    Class-wide Lab
+                  </Badge>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {getTeacherName(lesson.teacher_id)}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Lab: {getClassroomName(lesson.classroom_id)}
+                  </div>
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  Lab: {getClassroomName(lesson.classroom_id)}
+              );
+            })}
+
+            {/* Render continuation of 2-hour lessons from previous slot */}
+            {occupyingLesson && (
+              <div className={cn(
+                "p-1.5 border rounded text-xs border-dashed bg-opacity-50",
+                occupyingLesson.type === 'theory' ? "bg-slate-100 border-slate-300" :
+                  occupyingLesson.type === 'batchLab' ?
+                    (() => {
+                      const batchLab = occupyingLesson.lesson as LabSchedule;
+                      const batch = batches.find(b => b.id === batchLab.batch_id);
+                      return batch ? getBatchColor(batch.id) : "bg-gray-100 border-gray-300";
+                    })() :
+                    "bg-orange-100 border-orange-300",
+                "border-l-4 border-l-orange-500"
+              )}>
+                <div className="font-medium text-orange-700">
+                  {(() => {
+                    const lesson = occupyingLesson.lesson;
+                    if (occupyingLesson.type === 'batchLab') {
+                      return getSubjectName((lesson as LabSchedule).subject_id);
+                    } else {
+                      return getSubjectName((lesson as Lesson).subject_id || (lesson as any).subjectId || '');
+                    }
+                  })()} (cont.)
+                </div>
+                <Badge variant="outline" className="text-xs mt-1 bg-orange-200 text-orange-800">
+                  2h Lab - Slot 2
+                </Badge>
+                {occupyingLesson.type === 'batchLab' && (() => {
+                  const lesson = occupyingLesson.lesson as LabSchedule;
+                  return lesson.batch_id && (
+                    <div className="text-xs text-orange-600 mt-1">
+                      {batches.find(b => b.id === lesson.batch_id)?.name}
+                    </div>
+                  );
+                })()}
+                <div className="text-xs text-orange-500 mt-1">
+                  {(() => {
+                    const lesson = occupyingLesson.lesson;
+                    if (occupyingLesson.type === 'batchLab') {
+                      return getTeacherName((lesson as LabSchedule).teacher_id);
+                    } else {
+                      return getTeacherName((lesson as Lesson).teacher_id || (lesson as any).teacherId || '');
+                    }
+                  })()}
+                </div>
+                <div className="text-xs text-orange-500">
+                  Lab: {(() => {
+                    const lesson = occupyingLesson.lesson;
+                    if (occupyingLesson.type === 'batchLab') {
+                      return getClassroomName((lesson as LabSchedule).classroom_id);
+                    } else {
+                      return getClassroomName((lesson as Lesson).classroom_id || (lesson as any).classroomId);
+                    }
+                  })()}
                 </div>
               </div>
-            ))}
+            )}
           </div>
         )}
       </div>
@@ -255,8 +376,8 @@ export const BatchLabView: React.FC<BatchLabViewProps> = ({
         <CardHeader>
           <CardTitle>Class: {selectedClass?.name || "Unknown"}</CardTitle>
           <p className="text-sm text-muted-foreground">
-            {batches.length} batch{batches.length !== 1 ? 'es' : ''} • 
-            {theoryLessons.length} theory lecture{theoryLessons.length !== 1 ? 's' : ''} • 
+            {batches.length} batch{batches.length !== 1 ? 'es' : ''} •
+            {theoryLessons.length} theory lecture{theoryLessons.length !== 1 ? 's' : ''} •
             {hasBatchSpecificLabs ? labSchedules.length : labLessons.length} lab session{(hasBatchSpecificLabs ? labSchedules.length : labLessons.length) !== 1 ? 's' : ''}
           </p>
         </CardHeader>

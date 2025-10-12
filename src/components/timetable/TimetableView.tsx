@@ -7,6 +7,12 @@ import { ClassColorLegend, getClassColorMap } from "./ClassColorLegend";
 import { Edit, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TimetableService } from "@/services/timetableService";
+import { 
+  isSlotOccupiedByPreviousLesson, 
+  isLessonMultiHour, 
+  getMultiHourLessonStyle,
+  formatLessonDuration 
+} from "@/utils/timetableUtils";
 
 interface TimetableViewProps {
   timetable: Timetable;
@@ -133,6 +139,18 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
     );
   };
 
+  // Check if a time slot is occupied by a multi-slot lesson from previous slot
+  const checkSlotOccupiedByPrevious = (day: number, timeSlotId: string, classId?: string, teacherId?: string, classroomId?: string) => {
+    return isSlotOccupiedByPreviousLesson(
+      day,
+      timeSlotId,
+      filteredLessons,
+      subjects,
+      teachingTimeSlots,
+      { classId, teacherId, classroomId }
+    );
+  };
+
   const handleEditLesson = (lesson: Lesson) => {
     setEditingLesson(lesson);
     setIsDialogOpen(true);
@@ -179,9 +197,13 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
         (lesson) => lesson.day === day && lesson.timeSlotId === timeSlot.id
       );
 
+      // Check if this slot is occupied by a previous 2-hour lesson
+      const occupyingLesson = checkSlotOccupiedByPrevious(day, timeSlot.id);
+      const occupyingLessons = occupyingLesson ? [occupyingLesson] : [];
+
       return (
         <div className="h-full min-h-20 p-1 overflow-y-auto">
-          {lessonsInThisSlot.length === 0 ? (
+          {lessonsInThisSlot.length === 0 && occupyingLessons.length === 0 ? (
             <div className="h-full flex items-center justify-center text-gray-400 text-xs">
               {editMode === "edit" ? (
                 <Button 
@@ -199,42 +221,75 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
             </div>
           ) : (
             <div className="space-y-1">
-              {lessonsInThisSlot.map((lesson) => (
-                <div
-                  key={lesson.id}
-                   className={cn(
-                     "p-1 border rounded text-xs relative group",
-                     getClassColor(lesson.classId)
-                   )}
-                >
-                  <div className="font-medium">{getClassName(lesson.classId)}</div>
-                  <div>
-                    {getSubjectName(lesson.subjectId)}
-                    {isSubjectLab(lesson.subjectId) && (
-                      <span className="ml-1 px-1 py-0.5 bg-orange-100 text-orange-700 text-xs rounded">
-                        Practical
-                      </span>
+              {/* Render regular lessons in this slot */}
+              {lessonsInThisSlot.map((lesson) => {
+                const styleInfo = getMultiHourLessonStyle(lesson, subjects);
+                
+                return (
+                  <div
+                    key={lesson.id}
+                    className={cn(
+                      "p-1 border rounded text-xs relative group",
+                      getClassColor(lesson.classId),
+                      styleInfo.borderStyle
+                    )}
+                  >
+                    <div className="font-medium">{getClassName(lesson.classId)}</div>
+                    <div>
+                      {getSubjectName(lesson.subjectId)}
+                      {isSubjectLab(lesson.subjectId) && (
+                        <span className="ml-1 px-1 py-0.5 bg-orange-100 text-orange-700 text-xs rounded">
+                          {formatLessonDuration(lesson, subjects) || "Lab"}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {getTeacherName(lesson.teacherId)}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {getClassroomName(lesson.classroomId)}
+                    </div>
+                    {editMode === "edit" && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditLesson(lesson)}
+                        className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 p-1 h-auto"
+                      >
+                        <Edit className="h-3 w-3" />
+                      </Button>
                     )}
                   </div>
-                  <div className="text-xs text-gray-500">
-                    {getTeacherName(lesson.teacherId)}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {getClassroomName(lesson.classroomId)}
-                  </div>
-                  {editMode === "edit" && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleEditLesson(lesson)}
-                      className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 p-1 h-auto"
-                    >
-                      <Edit className="h-3 w-3" />
-                    </Button>
+                );
+              })}
+              
+              {/* Render continuation of 2-hour lessons from previous slot */}
+              {occupyingLessons.map((lesson) => (
+                <div
+                  key={`continuation-${lesson.id}`}
+                  className={cn(
+                    "p-1 border rounded text-xs relative group border-dashed",
+                    getClassColor(lesson.classId || lesson.class_id),
+                    "border-l-4 border-l-orange-500 bg-orange-50/50"
                   )}
+                >
+                  <div className="font-medium text-orange-700">{getClassName(lesson.classId || lesson.class_id)} (cont.)</div>
+                  <div className="text-orange-600">
+                    {getSubjectName(lesson.subjectId || lesson.subject_id)}
+                    <span className="ml-1 px-1 py-0.5 bg-orange-200 text-orange-800 text-xs rounded">
+                      2h Lab - Slot 2
+                    </span>
+                  </div>
+                  <div className="text-xs text-orange-500">
+                    {getTeacherName(lesson.teacherId || lesson.teacher_id)}
+                  </div>
+                  <div className="text-xs text-orange-500">
+                    {getClassroomName(lesson.classroomId || lesson.classroom_id)}
+                  </div>
                 </div>
               ))}
-              {editMode === "edit" && (
+              
+              {editMode === "edit" && lessonsInThisSlot.length === 0 && occupyingLessons.length === 0 && (
                 <Button 
                   variant="ghost" 
                   size="sm" 
@@ -259,20 +314,29 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
         view === "classroom" ? classroomId : undefined
       );
 
+      // Check if this slot is occupied by a previous 2-hour lesson
+      const occupyingLesson = checkSlotOccupiedByPrevious(
+        day,
+        timeSlot.id,
+        view === "class" ? classId : undefined,
+        view === "teacher" ? teacherId : undefined,
+        view === "classroom" ? classroomId : undefined
+      );
+
       return (
         <div className="h-full min-h-20 relative">
           {lesson ? (
             <div
               className={cn(
-                 "h-full p-2 flex flex-col group",
-                 getClassColor(lesson.classId)
-               )}
+                "h-full p-2 flex flex-col group",
+                getClassColor(lesson.classId)
+              )}
             >
               <div className="font-medium">
                 {getSubjectName(lesson.subjectId)}
                 {isSubjectLab(lesson.subjectId) && (
                   <span className="ml-1 px-1 py-0.5 bg-orange-100 text-orange-700 text-xs rounded">
-                    Practical
+                    {formatLessonDuration(lesson, subjects) || "Lab"}
                   </span>
                 )}
               </div>
@@ -294,6 +358,31 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
                 >
                   <Edit className="h-3 w-3" />
                 </Button>
+              )}
+            </div>
+          ) : occupyingLesson ? (
+            <div
+              className={cn(
+                "h-full p-2 flex flex-col border-dashed bg-orange-50/50",
+                getClassColor(occupyingLesson.classId)
+              )}
+            >
+              <div className="font-medium text-orange-700">
+                {getSubjectName(occupyingLesson.subjectId)} (cont.)
+              </div>
+              <div className="text-xs text-orange-600">
+                <span className="px-1 py-0.5 bg-orange-200 text-orange-800 text-xs rounded">
+                  2h Lab - Slot 2
+                </span>
+              </div>
+              {view !== "class" && (
+                <div className="text-xs text-orange-500">{getClassName(occupyingLesson.classId)}</div>
+              )}
+              {view !== "teacher" && (
+                <div className="text-xs text-orange-500">{getTeacherName(occupyingLesson.teacherId)}</div>
+              )}
+              {view !== "classroom" && occupyingLesson.classroomId && (
+                <div className="text-xs text-orange-500">{getClassroomName(occupyingLesson.classroomId)}</div>
               )}
             </div>
           ) : (

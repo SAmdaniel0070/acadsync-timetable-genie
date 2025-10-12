@@ -304,10 +304,21 @@ export const TimetableEditDialog: React.FC<TimetableEditDialogProps> = ({
                     {eligibleSubjects.map((subject) => (
                       <SelectItem key={subject.id} value={subject.id}>
                         {subject.name} ({subject.code})
+                        {subject.isLab && subject.lab_duration_hours === 2 && (
+                          <span className="ml-2 text-xs text-orange-600">(2h Lab)</span>
+                        )}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {selectedSubjectId && (() => {
+                  const subject = subjects.find(s => s.id === selectedSubjectId);
+                  return subject?.isLab && subject?.lab_duration_hours === 2 ? (
+                    <div className="text-xs text-orange-600 bg-orange-50 p-2 rounded border border-orange-200">
+                      ⚠️ This is a 2-hour lab session. It will occupy this slot and the next consecutive slot.
+                    </div>
+                  ) : null;
+                })()}
               </div>
 
               <div className="space-y-2">
@@ -417,10 +428,21 @@ export const TimetableEditDialog: React.FC<TimetableEditDialogProps> = ({
                       {eligibleSubjects.map((subject) => (
                         <SelectItem key={subject.id} value={subject.id}>
                           {subject.name} ({subject.code})
+                          {subject.isLab && subject.lab_duration_hours === 2 && (
+                            <span className="ml-2 text-xs text-orange-600">(2h Lab)</span>
+                          )}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  {selectedSubjectId && (() => {
+                    const subject = subjects.find(s => s.id === selectedSubjectId);
+                    return subject?.isLab && subject?.lab_duration_hours === 2 ? (
+                      <div className="text-xs text-orange-600 bg-orange-50 p-2 rounded border border-orange-200">
+                        ⚠️ This is a 2-hour lab session. It will occupy this slot and the next consecutive slot.
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
 
                 <div className="space-y-2">
