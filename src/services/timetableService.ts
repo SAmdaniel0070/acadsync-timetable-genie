@@ -185,54 +185,158 @@ export const TimetableService = {
   },
 
   async generateTimetable(): Promise<Timetable> {
-    // Get the first timing for default parameters
-    const { data: timingData } = await (supabase as any)
-      .from('timings')
-      .select('id')
-      .limit(1)
-      .single();
+    const startTime = Date.now();
+    console.log('🚀 Starting optimized timetable generation...');
 
-    if (!timingData) {
-      throw new Error('No timing configuration found. Please create timing slots first.');
-    }
+    try {
+      // Get timing configuration with error handling
+      const { data: timingData, error: timingError } = await (supabase as any)
+        .from('timings')
+        .select('id')
+        .limit(1)
+        .single();
 
-    // Check if we have the required data
-    const [classes, subjects, teachers] = await Promise.all([
-      this.getClasses(),
-      this.getSubjects(),
-      this.getTeachers()
-    ]);
-
-    if (classes.length === 0) {
-      throw new Error('No classes found. Please add classes first.');
-    }
-    if (subjects.length === 0) {
-      throw new Error('No subjects found. Please add subjects first.');
-    }
-    if (teachers.length === 0) {
-      throw new Error('No teachers found. Please add teachers first.');
-    }
-
-    const { data, error } = await supabase.functions.invoke('generate-timetable', {
-      body: {
-        name: `Generated Timetable ${new Date().toLocaleDateString()}`,
-        academicYear: new Date().getFullYear().toString(),
-        timingId: timingData.id
+      if (timingError || !timingData) {
+        throw new Error('No timing configuration found. Please create timing slots first.');
       }
-    });
 
-    if (error) throw error;
+      // Validate required data in parallel with detailed error messages
+      const [classesResult, subjectsResult, teachersResult] = await Promise.allSettled([
+        this.getClasses(),
+        this.getSubjects(),
+        this.getTeachers()
+      ]);
 
-    // After generation, generate batch lab schedules
-    await this.generateBatchLabSchedules();
+      const classes = classesResult.status === 'fulfilled' ? classesResult.value : [];
+      const subjects = subjectsResult.status === 'fulfilled' ? subjectsResult.value : [];
+      const teachers = teachersResult.status === 'fulfilled' ? teachersResult.value : [];
 
-    // After generation, fetch the updated timetable with lessons
-    const updatedTimetable = await this.getTimetable();
-    if (!updatedTimetable) {
-      throw new Error('Failed to fetch generated timetable');
+      // Detailed validation with helpful error messages
+      const validationErrors: string[] = [];
+
+      if (classes.length === 0) {
+        validationErrors.push('No classes found. Please add classes in the Classes section.');
+      }
+      if (subjects.length === 0) {
+        validationErrors.push('No subjects found. Please add subjects in the Subjects section.');
+      }
+      if (teachers.length === 0) {
+        validationErrors.push('No teachers found. Please add teachers in the Teachers section.');
+      }
+
+      // Check for subject-class assignments
+      const subjectsWithClasses = subjects.filter((s: any) => s.classes && s.classes.length > 0);
+      if (subjectsWithClasses.length === 0) {
+        validationErrors.push('No subject-class assignments found. Please assign subjects to classes.');
+      }
+
+      // Check for teacher-subject assignments
+      const teachersWithSubjects = teachers.filter((t: any) => t.subjects && t.subjects.length > 0);
+      if (teachersWithSubjects.length === 0) {
+        validationErrors.push('No teacher-subject assignments found. Please assign subjects to teachers.');
+      }
+
+      if (validationErrors.length > 0) {
+        throw new Error(`Timetable generation failed:\n${validationErrors.join('\n')}`);
+      }
+
+      console.log(`📊 Validation passed: ${classes.length} classes, ${subjects.length} subjects, ${teachers.length} teachers`);
+
+      // Generate main timetable with timeout and retry logic
+      let timetableData;
+      let attempts = 0;
+      const maxAttempts = 3;
+
+      while (attempts < maxAttempts) {
+        try {
+          console.log(`🎯 Generating main timetable (attempt ${attempts + 1}/${maxAttempts})...`);
+
+          const result = await Promise.race([
+            supabase.functions.invoke('generate-timetable', {
+              body: {
+                name: `Generated Timetable ${new Date().toLocaleDateString()}`,
+                academicYear: new Date().getFullYear().toString(),
+                timingId: timingData.id
+              }
+            }),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Timetable generation timeout')), 30000)
+            )
+          ]) as any;
+
+          const { data, error } = result;
+
+          if (error) {
+            throw error;
+          }
+
+          timetableData = data;
+          break;
+        } catch (error) {
+          attempts++;
+          console.warn(`⚠️ Timetable generation attempt ${attempts} failed:`, error);
+
+          if (attempts >= maxAttempts) {
+            throw new Error(`Failed to generate timetable after ${maxAttempts} attempts: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          }
+
+          // Wait before retry
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
+        }
+      }
+
+      console.log('✅ Main timetable generated successfully');
+
+      // Generate batch lab schedules with error isolation
+      try {
+        console.log('🧪 Generating batch lab schedules...');
+        await this.generateBatchLabSchedules();
+        console.log('✅ Batch lab schedules generated successfully');
+      } catch (labError) {
+        console.warn('⚠️ Batch lab generation failed, continuing with main timetable:', labError);
+        // Don't fail the entire generation if lab scheduling fails
+      }
+
+      // Fetch the final timetable with retry logic
+      let updatedTimetable;
+      attempts = 0;
+
+      while (attempts < 3) {
+        try {
+          updatedTimetable = await this.getTimetable();
+          if (updatedTimetable) break;
+        } catch (error) {
+          console.warn(`⚠️ Failed to fetch timetable (attempt ${attempts + 1}):`, error);
+        }
+        attempts++;
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      if (!updatedTimetable) {
+        throw new Error('Failed to fetch generated timetable after multiple attempts');
+      }
+
+      const duration = Date.now() - startTime;
+      console.log(`🎉 Timetable generation completed successfully in ${duration}ms`);
+
+      return updatedTimetable;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      console.error(`❌ Timetable generation failed after ${duration}ms:`, error);
+
+      // Provide user-friendly error messages
+      if (error instanceof Error) {
+        if (error.message.includes('timeout')) {
+          throw new Error('Timetable generation is taking too long. Please try again or contact support if the issue persists.');
+        }
+        if (error.message.includes('No timing configuration')) {
+          throw new Error('Please configure timing slots in the Settings section before generating a timetable.');
+        }
+        throw error;
+      }
+
+      throw new Error('An unexpected error occurred during timetable generation. Please try again.');
     }
-
-    return updatedTimetable;
   },
 
   async updateLesson(lesson: Lesson): Promise<void> {
@@ -462,81 +566,71 @@ export const TimetableService = {
   },
 
   async generateBatchLabSchedules(): Promise<void> {
+    const startTime = Date.now();
     try {
-      console.log('Starting batch lab schedule generation...');
+      console.log('🚀 Starting optimized batch lab schedule generation...');
 
-      // Get all required data
-      const [classes, subjects, teachers, batches, timeSlots, classrooms, assignments] = await Promise.all([
+      // Get all required data in parallel with error handling
+      const [classes, subjects, teachers, batches, timeSlots, classrooms, assignments, existingLessons, existingLabSchedules] = await Promise.allSettled([
         this.getClasses(),
         this.getSubjects(),
         this.getTeachers(),
         this.getBatches(),
         this.getTimeSlots(),
         this.getClassrooms(),
-        this.getBatchTeacherAssignments()
-      ]);
+        this.getBatchTeacherAssignments(),
+        this.getAllLessons(), // Get all lessons at once
+        this.getAllLabSchedules() // Get all lab schedules at once
+      ]).then(results => results.map(result => result.status === 'fulfilled' ? result.value : []));
 
-      // Clear existing lab schedules
-      await (supabase as any)
-        .from('lab_schedules')
-        .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
+      // Clear existing lab schedules in batch
+      await this.clearAllLabSchedules();
 
-      // Filter lab subjects only
-      const labSubjects = subjects.filter(subject => subject.isLab);
-      const labClassrooms = classrooms.filter(classroom => classroom.isLab);
-      const teachingTimeSlots = timeSlots.filter(slot => !slot.isBreak && !slot.is_break);
+      // Pre-filter and organize data
+      const labSubjects = subjects.filter((subject: any) => subject.isLab);
+      const labClassrooms = classrooms.filter((classroom: any) => classroom.isLab);
+      const teachingTimeSlots = timeSlots.filter((slot: any) => !slot.isBreak && !slot.is_break);
 
-      console.log(`Found ${labSubjects.length} lab subjects, ${batches.length} batches, ${labClassrooms.length} lab classrooms`);
+      if (labSubjects.length === 0) {
+        console.log('⚠️ No lab subjects found, skipping batch lab generation');
+        return;
+      }
 
-      // Group batches by class
-      const batchesByClass = batches.reduce((acc: any, batch: any) => {
-        if (!acc[batch.class_id]) {
-          acc[batch.class_id] = [];
-        }
-        acc[batch.class_id].push(batch);
-        return acc;
-      }, {});
+      console.log(`📊 Data loaded: ${labSubjects.length} lab subjects, ${batches.length} batches, ${labClassrooms.length} lab classrooms`);
 
-      // Create lab schedules for each class
+      // Create optimized data structures for fast lookups
+      const batchesByClass = this.groupBatchesByClass(batches);
+      const teachersBySubject = this.createTeacherSubjectMap(teachers, assignments);
+      const conflictChecker = new OptimizedConflictChecker(existingLessons, existingLabSchedules, teachingTimeSlots);
+
+      // Generate all lab schedules in batches
+      const allLabSchedulesToCreate: any[] = [];
+
       for (const classItem of classes) {
         const classBatches = batchesByClass[classItem.id] || [];
         if (classBatches.length === 0) continue;
 
-        // Get lab subjects for this class
-        const classLabSubjects = labSubjects.filter(subject =>
+        const classLabSubjects = labSubjects.filter((subject: any) =>
           subject.classes?.includes(classItem.id)
         );
 
-        console.log(`Processing class ${classItem.name} with ${classBatches.length} batches and ${classLabSubjects.length} lab subjects`);
+        console.log(`🎯 Processing class ${classItem.name}: ${classBatches.length} batches, ${classLabSubjects.length} lab subjects`);
 
         for (const subject of classLabSubjects) {
-          // Calculate total lab sessions needed based on periods per week
           const labSessionsPerWeek = subject.periodsPerWeek || 1;
           const labDuration = subject.lab_duration_hours || 1;
 
-          console.log(`Subject ${subject.name}: ${labSessionsPerWeek} sessions/week, ${labDuration}h duration`);
-
-          // For each batch, schedule the required lab sessions
           for (const batch of classBatches) {
-            // Find assigned teacher for this batch and subject
-            const teacherAssignment = assignments.find(assignment =>
-              assignment.batch_id === batch.id &&
-              assignment.subject_id === subject.id &&
-              assignment.assignment_type === 'lab'
-            );
-
-            const assignedTeacher = teacherAssignment ?
-              teachers.find(t => t.id === teacherAssignment.teacher_id) :
-              teachers.find(t => t.subjects?.includes(subject.id)); // Fallback to any qualified teacher
+            const assignedTeacher = teachersBySubject[`${batch.id}-${subject.id}`] ||
+              teachers.find((t: any) => t.subjects?.includes(subject.id));
 
             if (!assignedTeacher) {
-              console.warn(`No teacher found for batch ${batch.name} - subject ${subject.name}`);
+              console.warn(`⚠️ No teacher found for batch ${batch.name} - subject ${subject.name}`);
               continue;
             }
 
-            // Schedule lab sessions for this batch
-            await this.scheduleBatchLabSessions({
+            // Generate schedules for this batch efficiently
+            const batchSchedules = this.generateOptimizedBatchSchedules({
               batch,
               subject,
               teacher: assignedTeacher,
@@ -545,19 +639,30 @@ export const TimetableService = {
               labDuration,
               teachingTimeSlots,
               labClassrooms,
-              existingSchedules: [] // Will be populated as we create schedules
+              conflictChecker
             });
+
+            allLabSchedulesToCreate.push(...batchSchedules);
           }
         }
       }
 
-      console.log('Batch lab schedule generation completed');
+      // Batch insert all schedules at once
+      if (allLabSchedulesToCreate.length > 0) {
+        console.log(`💾 Inserting ${allLabSchedulesToCreate.length} lab schedules in batch...`);
+        await this.batchInsertLabSchedules(allLabSchedulesToCreate);
+      }
+
+      const duration = Date.now() - startTime;
+      console.log(`✅ Batch lab schedule generation completed in ${duration}ms`);
     } catch (error) {
-      console.error('Error generating batch lab schedules:', error);
-      throw error;
+      const duration = Date.now() - startTime;
+      console.error(`❌ Error generating batch lab schedules after ${duration}ms:`, error);
+      throw new Error(`Failed to generate batch lab schedules: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   },
 
+  // Legacy function - kept for backward compatibility but optimized
   async scheduleBatchLabSessions(params: {
     batch: any;
     subject: any;
@@ -569,129 +674,40 @@ export const TimetableService = {
     labClassrooms: any[];
     existingSchedules: any[];
   }): Promise<void> {
+    console.warn('⚠️ Using legacy scheduleBatchLabSessions - consider using optimized batch generation');
+
     const { batch, subject, teacher, classItem, labSessionsPerWeek, labDuration, teachingTimeSlots, labClassrooms } = params;
 
-    // Get existing schedules to avoid conflicts
-    const { data: existingSchedules } = await (supabase as any)
-      .from('lab_schedules')
-      .select('*');
+    try {
+      // Use optimized conflict checker
+      const [existingLessons, existingSchedules] = await Promise.all([
+        this.getAllLessons(),
+        this.getAllLabSchedules()
+      ]);
 
-    const schedules = existingSchedules || [];
+      const conflictChecker = new OptimizedConflictChecker(existingLessons, existingSchedules, teachingTimeSlots);
 
-    // Create time slots for the week (0-5 for Monday-Saturday)
-    const weekDays = [0, 1, 2, 3, 4, 5];
-    const availableSlots: Array<{ day: number, timeSlotId: string, timeSlot: any }> = [];
-
-    // Build available slots
-    for (const day of weekDays) {
-      for (const timeSlot of teachingTimeSlots) {
-        // For 2-hour labs, ensure next slot is also available
-        if (labDuration === 2) {
-          const nextSlot = teachingTimeSlots.find(slot =>
-            slot.slot_order === timeSlot.slot_order + 1 && !slot.is_break
-          );
-          if (!nextSlot) continue; // Skip if no consecutive slot available
-        }
-
-        availableSlots.push({
-          day,
-          timeSlotId: timeSlot.id,
-          timeSlot
-        });
-      }
-    }
-
-    // Shuffle available slots for random distribution
-    const shuffledSlots = [...availableSlots].sort(() => Math.random() - 0.5);
-
-    let scheduledSessions = 0;
-    const maxAttempts = shuffledSlots.length;
-    let attempts = 0;
-
-    for (const slot of shuffledSlots) {
-      if (scheduledSessions >= labSessionsPerWeek || attempts >= maxAttempts) break;
-      attempts++;
-
-      // Check for conflicts
-      const hasConflict = await this.checkLabScheduleConflict({
-        day: slot.day,
-        timeSlotId: slot.timeSlotId,
-        teacherId: teacher.id,
-        batchId: batch.id,
-        classId: classItem.id,
+      const schedules = this.generateOptimizedBatchSchedules({
+        batch,
+        subject,
+        teacher,
+        classItem,
+        labSessionsPerWeek,
         labDuration,
-        existingSchedules: schedules,
-        teachingTimeSlots
-      });
-
-      if (hasConflict) continue;
-
-      // Find available lab classroom
-      const availableClassroom = await this.findAvailableLabClassroom({
-        day: slot.day,
-        timeSlotId: slot.timeSlotId,
-        labDuration,
+        teachingTimeSlots,
         labClassrooms,
-        existingSchedules: schedules,
-        teachingTimeSlots
+        conflictChecker
       });
 
-      if (!availableClassroom) continue;
-
-      // Create the lab schedule
-      const labScheduleData = {
-        subject_id: subject.id,
-        teacher_id: teacher.id,
-        classroom_id: availableClassroom.id,
-        time_slot_id: slot.timeSlotId,
-        day: slot.day,
-        class_id: classItem.id,
-        batch_id: batch.id
-      };
-
-      const { data: newSchedule, error } = await (supabase as any)
-        .from('lab_schedules')
-        .insert(labScheduleData)
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error creating lab schedule:', error);
-        continue;
+      if (schedules.length > 0) {
+        await this.batchInsertLabSchedules(schedules);
+        console.log(`✅ Scheduled ${schedules.length} lab sessions for batch ${batch.name} - ${subject.name}`);
+      } else {
+        console.warn(`⚠️ Could not schedule any lab sessions for batch ${batch.name} - ${subject.name}`);
       }
-
-      schedules.push(newSchedule);
-      scheduledSessions++;
-
-      // For 2-hour labs, create continuation entry
-      if (labDuration === 2) {
-        const nextSlot = teachingTimeSlots.find(ts =>
-          ts.slot_order === slot.timeSlot.slot_order + 1 && !ts.is_break
-        );
-
-        if (nextSlot) {
-          const continuationData = {
-            ...labScheduleData,
-            time_slot_id: nextSlot.id
-          };
-
-          const { data: continuationSchedule } = await (supabase as any)
-            .from('lab_schedules')
-            .insert(continuationData)
-            .select()
-            .single();
-
-          if (continuationSchedule) {
-            schedules.push(continuationSchedule);
-          }
-        }
-      }
-
-      console.log(`Scheduled lab session for batch ${batch.name} - ${subject.name} on day ${slot.day} at ${slot.timeSlot.start_time}`);
-    }
-
-    if (scheduledSessions < labSessionsPerWeek) {
-      console.warn(`Could only schedule ${scheduledSessions}/${labSessionsPerWeek} lab sessions for batch ${batch.name} - ${subject.name}`);
+    } catch (error) {
+      console.error(`❌ Error scheduling lab sessions for batch ${batch.name}:`, error);
+      throw error;
     }
   },
 
@@ -882,5 +898,289 @@ export const TimetableService = {
       console.error('Error clearing batch lab schedules:', error);
       throw error;
     }
+  },
+
+  // Optimized helper functions for faster generation
+  async getAllLessons(): Promise<any[]> {
+    try {
+      const { data, error } = await (supabase as any)
+        .from('lessons')
+        .select('*');
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching all lessons:', error);
+      return [];
+    }
+  },
+
+  async getAllLabSchedules(): Promise<any[]> {
+    try {
+      const { data, error } = await (supabase as any)
+        .from('lab_schedules')
+        .select('*');
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching all lab schedules:', error);
+      return [];
+    }
+  },
+
+  async clearAllLabSchedules(): Promise<void> {
+    const { error } = await (supabase as any)
+      .from('lab_schedules')
+      .delete()
+      .neq('id', '00000000-0000-0000-0000-000000000000');
+
+    if (error) throw error;
+  },
+
+  groupBatchesByClass(batches: any[]): Record<string, any[]> {
+    return batches.reduce((acc: any, batch: any) => {
+      if (!acc[batch.class_id]) {
+        acc[batch.class_id] = [];
+      }
+      acc[batch.class_id].push(batch);
+      return acc;
+    }, {});
+  },
+
+  createTeacherSubjectMap(teachers: any[], assignments: any[]): Record<string, any> {
+    const map: Record<string, any> = {};
+
+    assignments.forEach((assignment: any) => {
+      if (assignment.assignment_type === 'lab') {
+        const key = `${assignment.batch_id}-${assignment.subject_id}`;
+        const teacher = teachers.find((t: any) => t.id === assignment.teacher_id);
+        if (teacher) {
+          map[key] = teacher;
+        }
+      }
+    });
+
+    return map;
+  },
+
+  generateOptimizedBatchSchedules(params: {
+    batch: any;
+    subject: any;
+    teacher: any;
+    classItem: any;
+    labSessionsPerWeek: number;
+    labDuration: number;
+    teachingTimeSlots: any[];
+    labClassrooms: any[];
+    conflictChecker: any;
+  }): any[] {
+    const { batch, subject, teacher, classItem, labSessionsPerWeek, labDuration, teachingTimeSlots, labClassrooms, conflictChecker } = params;
+
+    const schedules: any[] = [];
+    const weekDays = [0, 1, 2, 3, 4, 5];
+
+    // Create all possible slots
+    const availableSlots: Array<{ day: number, timeSlotId: string, timeSlot: any }> = [];
+
+    for (const day of weekDays) {
+      for (const timeSlot of teachingTimeSlots) {
+        // For 2-hour labs, ensure next slot is available
+        if (labDuration === 2) {
+          const nextSlot = teachingTimeSlots.find((slot: any) =>
+            slot.slot_order === timeSlot.slot_order + 1 && !slot.is_break
+          );
+          if (!nextSlot) continue;
+        }
+
+        availableSlots.push({ day, timeSlotId: timeSlot.id, timeSlot });
+      }
+    }
+
+    // Shuffle for random distribution
+    const shuffledSlots = [...availableSlots].sort(() => Math.random() - 0.5);
+
+    let scheduledSessions = 0;
+
+    for (const slot of shuffledSlots) {
+      if (scheduledSessions >= labSessionsPerWeek) break;
+
+      // Fast conflict check
+      if (conflictChecker.hasConflict(slot.day, slot.timeSlotId, teacher.id, batch.id, classItem.id, labDuration)) {
+        continue;
+      }
+
+      // Find available classroom
+      const availableClassroom = this.findAvailableClassroomFast(
+        slot.day, slot.timeSlotId, labDuration, labClassrooms, conflictChecker
+      );
+
+      if (!availableClassroom) continue;
+
+      // Create schedule data
+      const scheduleData = {
+        subject_id: subject.id,
+        teacher_id: teacher.id,
+        classroom_id: availableClassroom.id,
+        time_slot_id: slot.timeSlotId,
+        day: slot.day,
+        class_id: classItem.id,
+        batch_id: batch.id
+      };
+
+      schedules.push(scheduleData);
+
+      // Add to conflict checker for future checks
+      conflictChecker.addSchedule(scheduleData);
+
+      // For 2-hour labs, add continuation
+      if (labDuration === 2) {
+        const nextSlot = teachingTimeSlots.find((ts: any) =>
+          ts.slot_order === slot.timeSlot.slot_order + 1 && !ts.is_break
+        );
+
+        if (nextSlot) {
+          const continuationData = {
+            ...scheduleData,
+            time_slot_id: nextSlot.id
+          };
+          schedules.push(continuationData);
+          conflictChecker.addSchedule(continuationData);
+        }
+      }
+
+      scheduledSessions++;
+    }
+
+    return schedules;
+  },
+
+  findAvailableClassroomFast(day: number, timeSlotId: string, labDuration: number, labClassrooms: any[], conflictChecker: any): any | null {
+    for (const classroom of labClassrooms) {
+      if (!conflictChecker.hasClassroomConflict(day, timeSlotId, classroom.id, labDuration)) {
+        return classroom;
+      }
+    }
+    return null;
+  },
+
+  async batchInsertLabSchedules(schedules: any[]): Promise<void> {
+    const BATCH_SIZE = 100; // Insert in batches of 100
+
+    for (let i = 0; i < schedules.length; i += BATCH_SIZE) {
+      const batch = schedules.slice(i, i + BATCH_SIZE);
+
+      const { error } = await (supabase as any)
+        .from('lab_schedules')
+        .insert(batch);
+
+      if (error) {
+        console.error(`Error inserting batch ${i / BATCH_SIZE + 1}:`, error);
+        throw error;
+      }
+    }
   }
 };
+
+// Optimized conflict checker class
+class OptimizedConflictChecker {
+  private lessonConflicts: Set<string> = new Set();
+  private labConflicts: Set<string> = new Set();
+  private classroomConflicts: Set<string> = new Set();
+  private teachingTimeSlots: any[];
+
+  constructor(lessons: any[], labSchedules: any[], teachingTimeSlots: any[]) {
+    this.teachingTimeSlots = teachingTimeSlots;
+
+    // Pre-compute conflict keys for fast lookup
+    lessons.forEach((lesson: any) => {
+      const key = `${lesson.day}-${lesson.time_slot_id}`;
+      this.lessonConflicts.add(`${key}-teacher-${lesson.teacher_id}`);
+      this.lessonConflicts.add(`${key}-class-${lesson.class_id}`);
+      if (lesson.classroom_id) {
+        this.classroomConflicts.add(`${key}-${lesson.classroom_id}`);
+      }
+
+      // Handle 2-hour lessons
+      if (lesson.duration_slots === 2) {
+        const nextSlot = this.findNextSlot(lesson.time_slot_id);
+        if (nextSlot) {
+          const nextKey = `${lesson.day}-${nextSlot.id}`;
+          this.lessonConflicts.add(`${nextKey}-teacher-${lesson.teacher_id}`);
+          this.lessonConflicts.add(`${nextKey}-class-${lesson.class_id}`);
+          if (lesson.classroom_id) {
+            this.classroomConflicts.add(`${nextKey}-${lesson.classroom_id}`);
+          }
+        }
+      }
+    });
+
+    labSchedules.forEach((schedule: any) => {
+      const key = `${schedule.day}-${schedule.time_slot_id}`;
+      this.labConflicts.add(`${key}-teacher-${schedule.teacher_id}`);
+      this.labConflicts.add(`${key}-batch-${schedule.batch_id}`);
+      this.labConflicts.add(`${key}-class-${schedule.class_id}`);
+      this.classroomConflicts.add(`${key}-${schedule.classroom_id}`);
+    });
+  }
+
+  hasConflict(day: number, timeSlotId: string, teacherId: string, batchId: string, classId: string, labDuration: number): boolean {
+    const slotsToCheck = [timeSlotId];
+
+    if (labDuration === 2) {
+      const nextSlot = this.findNextSlot(timeSlotId);
+      if (!nextSlot) return true;
+      slotsToCheck.push(nextSlot.id);
+    }
+
+    for (const slotId of slotsToCheck) {
+      const key = `${day}-${slotId}`;
+
+      if (this.lessonConflicts.has(`${key}-teacher-${teacherId}`) ||
+        this.lessonConflicts.has(`${key}-class-${classId}`) ||
+        this.labConflicts.has(`${key}-teacher-${teacherId}`) ||
+        this.labConflicts.has(`${key}-batch-${batchId}`) ||
+        this.labConflicts.has(`${key}-class-${classId}`)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  hasClassroomConflict(day: number, timeSlotId: string, classroomId: string, labDuration: number): boolean {
+    const slotsToCheck = [timeSlotId];
+
+    if (labDuration === 2) {
+      const nextSlot = this.findNextSlot(timeSlotId);
+      if (!nextSlot) return true;
+      slotsToCheck.push(nextSlot.id);
+    }
+
+    for (const slotId of slotsToCheck) {
+      const key = `${day}-${slotId}-${classroomId}`;
+      if (this.classroomConflicts.has(key)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  addSchedule(schedule: any): void {
+    const key = `${schedule.day}-${schedule.time_slot_id}`;
+    this.labConflicts.add(`${key}-teacher-${schedule.teacher_id}`);
+    this.labConflicts.add(`${key}-batch-${schedule.batch_id}`);
+    this.labConflicts.add(`${key}-class-${schedule.class_id}`);
+    this.classroomConflicts.add(`${key}-${schedule.classroom_id}`);
+  }
+
+  private findNextSlot(timeSlotId: string): any | null {
+    const currentSlot = this.teachingTimeSlots.find((slot: any) => slot.id === timeSlotId);
+    if (!currentSlot) return null;
+
+    return this.teachingTimeSlots.find((slot: any) =>
+      slot.slot_order === currentSlot.slot_order + 1 && !slot.is_break
+    ) || null;
+  }
+}
