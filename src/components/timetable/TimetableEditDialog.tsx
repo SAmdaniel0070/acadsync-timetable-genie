@@ -17,8 +17,7 @@ import {
   Lesson, 
   TimeSlot, 
   Batch, 
-  Classroom,
-  Timetable 
+  Classroom 
 } from "@/types";
 import { TimetableService } from "@/services/timetableService";
 import { useToast } from "@/components/ui/use-toast";
@@ -35,7 +34,6 @@ interface TimetableEditDialogProps {
   teachers: Teacher[];
   subjects: Subject[];
   timeSlots: TimeSlot[];
-  timetable?: Timetable;
   onSave: (lesson: Lesson) => void;
   onDelete?: (id: string) => void;
   onAdd: (lesson: Omit<Lesson, "id">) => void;
@@ -51,7 +49,6 @@ export const TimetableEditDialog: React.FC<TimetableEditDialogProps> = ({
   teachers,
   subjects,
   timeSlots,
-  timetable,
   onSave,
   onDelete,
   onAdd
@@ -201,14 +198,9 @@ export const TimetableEditDialog: React.FC<TimetableEditDialogProps> = ({
     
     try {
       if (lesson) {
-        // Update existing lesson - preserve all existing fields and update only changed ones
+        // Update existing lesson
         const updatedLesson: Lesson = {
           ...lesson,
-          // Update both database and compatibility fields
-          class_id: selectedClassId,
-          subject_id: selectedSubjectId,
-          teacher_id: selectedTeacherId,
-          classroom_id: selectedClassroomId === "no-classroom" ? undefined : selectedClassroomId,
           classId: selectedClassId,
           subjectId: selectedSubjectId,
           teacherId: selectedTeacherId,
@@ -218,22 +210,15 @@ export const TimetableEditDialog: React.FC<TimetableEditDialogProps> = ({
         
         onSave(updatedLesson);
       } else {
-        // Get the selected subject to check if it's a multi-hour lab
-        const selectedSubject = subjects.find(s => s.id === selectedSubjectId);
-        const isMultiHourLab = selectedSubject?.isLab && selectedSubject?.lab_duration_hours === 2;
-        
         // Create new lesson
         const newLesson: Omit<Lesson, "id"> = {
-          timetable_id: timetable?.id || "", // Use the current timetable ID
+          timetable_id: "default-timetable", // We'll need to get this properly
           class_id: selectedClassId,
           subject_id: selectedSubjectId,
           teacher_id: selectedTeacherId,
           classroom_id: selectedClassroomId === "no-classroom" ? undefined : selectedClassroomId,
           time_slot_id: timeSlotId,
           day,
-          duration_slots: isMultiHourLab ? 2 : 1,
-          is_continuation: false,
-          parent_lesson_id: null,
           // Legacy compatibility fields
           classId: selectedClassId,
           subjectId: selectedSubjectId,

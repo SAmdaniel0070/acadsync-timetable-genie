@@ -61,7 +61,6 @@ export interface LabSchedule {
   day: number; // 0 for Monday, 1 for Tuesday, etc.
   class_id?: string;
   batch_id?: string | null; // optional batch ID for batch-specific lab schedules
-  duration_slots?: number; // Number of consecutive slots this lab session occupies (1 for regular, 2 for 2-hour labs)
   created_at?: string;
   updated_at?: string;
 }
@@ -116,7 +115,7 @@ export interface Lesson {
   duration_slots?: number; // Number of consecutive slots this lesson occupies (1 for regular, 2 for 2-hour labs)
   is_continuation?: boolean; // True if this is a continuation slot of a multi-slot lesson
   parent_lesson_id?: string; // ID of the parent lesson for continuation slots
-
+  
   // Computed/compatibility fields
   classId?: string;
   subjectId?: string;
@@ -124,7 +123,7 @@ export interface Lesson {
   classroomId?: string;
   timeSlotId?: string;
   batchId?: string; // optional batch identifier
-
+  
   created_at?: string;
   updated_at?: string;
 }

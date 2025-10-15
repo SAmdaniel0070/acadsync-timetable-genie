@@ -1,6 +1,0 @@
-Subject Name,Subject Code,Periods per Week,Is Lab,Classes
-Programming,CS101,4,No,"CS-A,CS-B"
-Programming Lab,CS101L,2,Yes,"CS-A,CS-B"
-Mathematics,MATH101,5,No,"CS-A,CS-B,IT-A"
-Database Systems,CS201,3,No,IT-A
-Database Lab,CS201L,2,Yes,IT-A

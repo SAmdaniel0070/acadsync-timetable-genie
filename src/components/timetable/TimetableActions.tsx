@@ -1,10 +1,10 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Download, Edit, MailIcon, Share2, ChevronDown, FlaskConical, RotateCcw, Trash2 } from "lucide-react";
+import { Download, Edit, MailIcon, Share2, ChevronDown } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { EditMode } from "@/types";
 import { TimetableDrafts } from "./TimetableDrafts";
 
@@ -17,8 +17,6 @@ interface TimetableActionsProps {
   toggleEditMode: () => void;
   currentTimetableData?: any;
   onLoadDraft: (draftData: any) => void;
-  onRegenerateBatchLabs?: () => void;
-  onClearBatchLabs?: () => void;
 }
 
 export const TimetableActions: React.FC<TimetableActionsProps> = ({
@@ -30,8 +28,6 @@ export const TimetableActions: React.FC<TimetableActionsProps> = ({
   toggleEditMode,
   currentTimetableData,
   onLoadDraft,
-  onRegenerateBatchLabs,
-  onClearBatchLabs,
 }) => {
   return (
     <div className="space-y-4">
@@ -89,25 +85,6 @@ export const TimetableActions: React.FC<TimetableActionsProps> = ({
           <Share2 className="mr-2 h-4 w-4" />
           Share
         </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button>
-              <FlaskConical className="mr-2 h-4 w-4" />
-              Lab Management
-              <ChevronDown className="ml-1 h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            <DropdownMenuItem onClick={onRegenerateBatchLabs}>
-              <RotateCcw className="mr-2 h-4 w-4" />
-              Regenerate Batch Labs
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={onClearBatchLabs}>
-              <Trash2 className="mr-2 h-4 w-4" />
-              Clear Batch Labs
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
         <Button onClick={onGenerate}>
           Generate Timetable
         </Button>

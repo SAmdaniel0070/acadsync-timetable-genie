@@ -185,7 +185,7 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
     // If it's a break, render a break cell
     if (timeSlot.isBreak) {
       return (
-        <div className="h-full min-h-20 flex items-center justify-center timetable-break text-sm font-medium">
+        <div className="h-full min-h-20 flex items-center justify-center bg-gray-100 text-gray-500 text-xs">
           Break
         </div>
       );
@@ -204,13 +204,13 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
       return (
         <div className="h-full min-h-20 p-1 overflow-y-auto">
           {lessonsInThisSlot.length === 0 && occupyingLessons.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
+            <div className="h-full flex items-center justify-center text-gray-400 text-xs">
               {editMode === "edit" ? (
                 <Button 
                   variant="ghost" 
                   size="sm" 
                   onClick={() => handleAddLesson(day, timeSlot.id)}
-                  className="text-muted-foreground hover:text-foreground hover:bg-muted"
+                  className="text-gray-400 hover:text-gray-600"
                 >
                   <Plus className="h-4 w-4" />
                   Add
@@ -229,26 +229,25 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
                   <div
                     key={lesson.id}
                     className={cn(
-                      "timetable-lesson p-2 text-xs relative group",
+                      "p-1 border rounded text-xs relative group",
                       getClassColor(lesson.classId),
-                      styleInfo.borderStyle,
-                      styleInfo.isMultiHour && "timetable-lesson-lab"
+                      styleInfo.borderStyle
                     )}
                   >
-                    <div className="font-semibold text-sm mb-1">{getClassName(lesson.classId)}</div>
-                    <div className="mb-1">
+                    <div className="font-medium">{getClassName(lesson.classId)}</div>
+                    <div>
                       {getSubjectName(lesson.subjectId)}
                       {isSubjectLab(lesson.subjectId) && (
-                        <span className="ml-1 px-2 py-0.5 badge-lab text-xs rounded-full font-medium">
+                        <span className="ml-1 px-1 py-0.5 bg-orange-100 text-orange-700 text-xs rounded">
                           {formatLessonDuration(lesson, subjects) || "Lab"}
                         </span>
                       )}
                     </div>
-                    <div className="text-xs text-muted-foreground mb-1">
-                      👨‍🏫 {getTeacherName(lesson.teacherId)}
+                    <div className="text-xs text-gray-500">
+                      {getTeacherName(lesson.teacherId)}
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      🏛️ {getClassroomName(lesson.classroomId)}
+                    <div className="text-xs text-gray-500">
+                      {getClassroomName(lesson.classroomId)}
                     </div>
                     {editMode === "edit" && (
                       <Button
@@ -269,25 +268,23 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
                 <div
                   key={`continuation-${lesson.id}`}
                   className={cn(
-                    "timetable-lesson timetable-lesson-continuation p-2 text-xs relative group",
+                    "p-1 border rounded text-xs relative group border-dashed",
                     getClassColor(lesson.classId || lesson.class_id),
-                    "border-l-4 border-l-orange-500"
+                    "border-l-4 border-l-orange-500 bg-orange-50/50"
                   )}
                 >
-                  <div className="font-semibold text-sm mb-1 text-orange-700 dark:text-orange-300">
-                    {getClassName(lesson.classId || lesson.class_id)} (cont.)
-                  </div>
-                  <div className="text-orange-600 dark:text-orange-400 mb-1">
+                  <div className="font-medium text-orange-700">{getClassName(lesson.classId || lesson.class_id)} (cont.)</div>
+                  <div className="text-orange-600">
                     {getSubjectName(lesson.subjectId || lesson.subject_id)}
-                    <span className="ml-1 px-2 py-0.5 bg-orange-200 dark:bg-orange-900/50 text-orange-800 dark:text-orange-200 text-xs rounded-full font-medium">
+                    <span className="ml-1 px-1 py-0.5 bg-orange-200 text-orange-800 text-xs rounded">
                       2h Lab - Slot 2
                     </span>
                   </div>
-                  <div className="text-xs text-orange-500 dark:text-orange-400 mb-1">
-                    👨‍🏫 {getTeacherName(lesson.teacherId || lesson.teacher_id)}
+                  <div className="text-xs text-orange-500">
+                    {getTeacherName(lesson.teacherId || lesson.teacher_id)}
                   </div>
-                  <div className="text-xs text-orange-500 dark:text-orange-400">
-                    🏛️ {getClassroomName(lesson.classroomId || lesson.classroom_id)}
+                  <div className="text-xs text-orange-500">
+                    {getClassroomName(lesson.classroomId || lesson.classroom_id)}
                   </div>
                 </div>
               ))}
@@ -297,7 +294,7 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
                   variant="ghost" 
                   size="sm" 
                   onClick={() => handleAddLesson(day, timeSlot.id)}
-                  className="w-full text-xs text-muted-foreground hover:text-foreground hover:bg-muted"
+                  className="w-full text-xs text-gray-400 hover:text-gray-600"
                 >
                   <Plus className="h-4 w-4 mr-1" />
                   Add
@@ -331,27 +328,26 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
           {lesson ? (
             <div
               className={cn(
-                "timetable-lesson h-full p-3 flex flex-col group",
-                getClassColor(lesson.classId),
-                isSubjectLab(lesson.subjectId) && "timetable-lesson-lab"
+                "h-full p-2 flex flex-col group",
+                getClassColor(lesson.classId)
               )}
             >
-              <div className="font-semibold text-sm mb-2">
+              <div className="font-medium">
                 {getSubjectName(lesson.subjectId)}
                 {isSubjectLab(lesson.subjectId) && (
-                  <span className="ml-2 px-2 py-0.5 badge-lab text-xs rounded-full font-medium">
+                  <span className="ml-1 px-1 py-0.5 bg-orange-100 text-orange-700 text-xs rounded">
                     {formatLessonDuration(lesson, subjects) || "Lab"}
                   </span>
                 )}
               </div>
               {view !== "class" && (
-                <div className="text-sm text-muted-foreground mb-1">🎓 {getClassName(lesson.classId)}</div>
+                <div className="text-xs">{getClassName(lesson.classId)}</div>
               )}
               {view !== "teacher" && (
-                <div className="text-sm text-muted-foreground mb-1">👨‍🏫 {getTeacherName(lesson.teacherId)}</div>
+                <div className="text-xs">{getTeacherName(lesson.teacherId)}</div>
               )}
               {view !== "classroom" && lesson.classroomId && (
-                <div className="text-sm text-muted-foreground">🏛️ {getClassroomName(lesson.classroomId)}</div>
+                <div className="text-xs text-gray-600">{getClassroomName(lesson.classroomId)}</div>
               )}
               {editMode === "edit" && (
                 <Button
@@ -367,37 +363,36 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
           ) : occupyingLesson ? (
             <div
               className={cn(
-                "timetable-lesson timetable-lesson-continuation h-full p-3 flex flex-col border-dashed",
-                getClassColor(occupyingLesson.classId),
-                "border-l-4 border-l-orange-500"
+                "h-full p-2 flex flex-col border-dashed bg-orange-50/50",
+                getClassColor(occupyingLesson.classId)
               )}
             >
-              <div className="font-semibold text-sm mb-2 text-orange-700 dark:text-orange-300">
+              <div className="font-medium text-orange-700">
                 {getSubjectName(occupyingLesson.subjectId)} (cont.)
               </div>
-              <div className="text-sm text-orange-600 dark:text-orange-400 mb-2">
-                <span className="px-2 py-0.5 bg-orange-200 dark:bg-orange-900/50 text-orange-800 dark:text-orange-200 text-xs rounded-full font-medium">
+              <div className="text-xs text-orange-600">
+                <span className="px-1 py-0.5 bg-orange-200 text-orange-800 text-xs rounded">
                   2h Lab - Slot 2
                 </span>
               </div>
               {view !== "class" && (
-                <div className="text-sm text-orange-500 dark:text-orange-400 mb-1">🎓 {getClassName(occupyingLesson.classId)}</div>
+                <div className="text-xs text-orange-500">{getClassName(occupyingLesson.classId)}</div>
               )}
               {view !== "teacher" && (
-                <div className="text-sm text-orange-500 dark:text-orange-400 mb-1">👨‍🏫 {getTeacherName(occupyingLesson.teacherId)}</div>
+                <div className="text-xs text-orange-500">{getTeacherName(occupyingLesson.teacherId)}</div>
               )}
               {view !== "classroom" && occupyingLesson.classroomId && (
-                <div className="text-sm text-orange-500 dark:text-orange-400">🏛️ {getClassroomName(occupyingLesson.classroomId)}</div>
+                <div className="text-xs text-orange-500">{getClassroomName(occupyingLesson.classroomId)}</div>
               )}
             </div>
           ) : (
-            <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
+            <div className="h-full flex items-center justify-center text-gray-400 text-xs">
               {editMode === "edit" ? (
                 <Button 
                   variant="ghost" 
                   size="sm" 
                   onClick={() => handleAddLesson(day, timeSlot.id)}
-                  className="text-muted-foreground hover:text-foreground hover:bg-muted"
+                  className="text-gray-400 hover:text-gray-600"
                 >
                   <Plus className="h-4 w-4" />
                   Add
@@ -417,14 +412,14 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
       {/* Show color legend only for master view */}
       {view === "master" && <ClassColorLegend classes={classes} />}
       
-      <div className="bg-card rounded-md shadow-sm border border-border overflow-auto">
+      <div className="bg-white rounded-md shadow overflow-auto">
         <div className="min-w-[768px]">
           <table className="w-full border-collapse">
             <thead>
               <tr>
-                <th className="table-header border border-border p-3 w-24 text-sm font-semibold"></th>
+                <th className="border p-2 bg-gray-50 w-24"></th>
                 {daysOfWeek.map((day) => (
-                  <th key={day} className="table-header border border-border p-3 text-sm font-semibold">
+                  <th key={day} className="border p-2 bg-gray-50">
                     {day}
                   </th>
                 ))}
@@ -440,11 +435,11 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
                 return (
                   <React.Fragment key={timeSlot.id}>
                     <tr>
-                      <td className="table-header border border-border p-3 text-sm font-semibold">
+                      <td className="border p-2 bg-gray-50 text-sm font-medium">
                         {timeSlot.startTime} - {timeSlot.endTime}
                       </td>
                       {daysOfWeek.map((_, dayIndex) => (
-                        <td key={`${timeSlot.id}-${dayIndex}`} className="table-cell border border-border">
+                        <td key={`${timeSlot.id}-${dayIndex}`} className="border">
                           {renderCell(dayIndex, timeSlot)}
                         </td>
                       ))}
@@ -452,12 +447,12 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
                     
                     {/* Render break row if there's a break after this slot */}
                     {nextBreak && (
-                      <tr className="timetable-break">
-                        <td className="table-header border border-border p-3 text-sm font-semibold">
+                      <tr className="bg-gray-50">
+                        <td className="border p-2 text-sm font-medium">
                           {nextBreak.startTime} - {nextBreak.endTime}
                         </td>
                         {daysOfWeek.map((_, dayIndex) => (
-                          <td key={`break-${nextBreak.id}-${dayIndex}`} className="table-cell border border-border timetable-break">
+                          <td key={`break-${nextBreak.id}-${dayIndex}`} className="border">
                             {renderCell(dayIndex, nextBreak)}
                           </td>
                         ))}
@@ -483,7 +478,6 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
           subjects={subjects}
           classes={classes}
           timeSlots={timeSlots}
-          timetable={timetable}
           onSave={handleSaveLesson}
           onDelete={handleDeleteLesson}
           onAdd={handleAddNewLesson}
